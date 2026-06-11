@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Env
+.env
+.env.local
+*.local
+
+# Node / frontend (placeholder for when the FE lands here)
+node_modules/
+dist/
+.next/
+.vite/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Bootstrap-time secrets, not for committing
+.staging-dbpass.tmp
+.prod-dbpass.tmp
+.gha-fed-cred.tmp.json
+
+# Generated SharePoint inventory reports (contain client data)
+cd_inventory*.md
+cd_mismatches.xlsx

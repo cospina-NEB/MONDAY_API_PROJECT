@@ -1,0 +1,44 @@
+//get all workspaces
+query {
+  workspaces {
+    id
+    name
+    description
+    kind
+  }
+}
+
+
+// List all users
+query {
+  users {
+    id
+    name
+    email
+    is_admin
+    is_guest
+    enabled
+    created_at
+    last_activity
+    teams {
+      name
+    }
+    account {
+      id
+    }
+  }
+}
+
+// List users in a specific workspace
+query {
+  workspaces(ids: [15284606]) {
+    id
+    name
+    members {
+      id
+      name
+      email
+      role
+    }
+  }
+}
