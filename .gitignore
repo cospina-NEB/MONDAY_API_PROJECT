@@ -40,3 +40,7 @@ Thumbs.db
 # Generated SharePoint inventory reports (contain client data)
 cd_inventory*.md
 cd_mismatches.xlsx
+
+# Generated Monday user reports (contain client data)
+coral_user_report_*.csv
+coral_user_report_*.html

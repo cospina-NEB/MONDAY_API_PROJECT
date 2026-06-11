@@ -63,6 +63,34 @@ The project is a single PowerShell script (`monday_user_report.ps1`) with no bui
 - `Products` is always `"N/A"` — not available via `users_subscribers`
 - Pending invitations are not visible via the API
 
+## Automation & SharePoint Upload
+
+The report runs automatically on the **1st of each month at 8:00 AM UTC** via GitHub Actions (`.github/workflows/monthly_report.yml`). After generating the CSV and HTML, it uploads both files to SharePoint using `upload_to_sharepoint.ps1`.
+
+**To upload manually (local run):**
+```powershell
+.\monday_user_report.ps1
+.\upload_to_sharepoint.ps1
+```
+
+**Required `.env` variables for SharePoint:**
+```
+SHAREPOINT_TENANT_ID=<azure-ad-tenant-id>
+SHAREPOINT_CLIENT_ID=<app-registration-client-id>
+SHAREPOINT_CLIENT_SECRET=<app-registration-secret>
+SHAREPOINT_SITE_URL=https://nebulasco487.sharepoint.com/sites/sp_softwaredevelopment
+SHAREPOINT_FOLDER=Shared Documents/COR/monday_api_project
+```
+
+**Required GitHub Secrets** (set in repo → Settings → Secrets → Actions):
+`MONDAY_API_TOKEN`, `SHAREPOINT_TENANT_ID`, `SHAREPOINT_CLIENT_ID`, `SHAREPOINT_CLIENT_SECRET`, `SHAREPOINT_SITE_URL`, `SHAREPOINT_FOLDER`
+
+**Azure AD app requirements** (one-time setup):
+- App registration with **Microsoft Graph → Application → `Sites.ReadWrite.All`** permission
+- Admin consent granted
+
+The workflow can also be triggered manually from the GitHub Actions UI via `workflow_dispatch`.
+
 ## API Details
 
 - Endpoint: `https://api.monday.com/v2`

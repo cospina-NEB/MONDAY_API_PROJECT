@@ -1,0 +1,39 @@
+name: Monthly Monday User Report
+
+on:
+  schedule:
+    - cron: '0 8 1 * *'   # 1st of each month at 8:00 AM UTC
+  workflow_dispatch:        # allow manual trigger from the GitHub Actions UI
+
+jobs:
+  generate-and-upload:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Write .env from secrets
+        shell: pwsh
+        run: |
+          "MONDAY_API_TOKEN=${{ secrets.MONDAY_API_TOKEN }}"         | Out-File .env -Encoding utf8
+          "SHAREPOINT_TENANT_ID=${{ secrets.SHAREPOINT_TENANT_ID }}" | Add-Content .env -Encoding utf8
+          "SHAREPOINT_CLIENT_ID=${{ secrets.SHAREPOINT_CLIENT_ID }}" | Add-Content .env -Encoding utf8
+          "SHAREPOINT_CLIENT_SECRET=${{ secrets.SHAREPOINT_CLIENT_SECRET }}" | Add-Content .env -Encoding utf8
+          "SHAREPOINT_SITE_URL=${{ secrets.SHAREPOINT_SITE_URL }}"   | Add-Content .env -Encoding utf8
+          "SHAREPOINT_FOLDER=${{ secrets.SHAREPOINT_FOLDER }}"       | Add-Content .env -Encoding utf8
+
+      - name: Generate Coral User Report
+        shell: pwsh
+        run: .\monday_user_report.ps1
+
+      - name: Upload reports to SharePoint
+        shell: pwsh
+        run: .\upload_to_sharepoint.ps1
+
+      - name: Archive reports as workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: coral-report-${{ github.run_id }}
+          path: coral_user_report_*.*
+          retention-days: 90
