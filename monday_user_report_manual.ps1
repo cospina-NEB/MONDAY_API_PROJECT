@@ -31,9 +31,7 @@ $Token      = $env:MONDAY_API_TOKEN
 if (-not $Token) { throw "Set MONDAY_API_TOKEN env var first" }
 
 $Date       = Get-Date -Format "yyyy-MM-dd"
-$ReportsDir = Join-Path $ScriptDir "Reports"
-if (-not (Test-Path $ReportsDir)) { New-Item -ItemType Directory -Path $ReportsDir | Out-Null }
-$OutputFile = Join-Path $ReportsDir "coral_user_report_$Date.csv"
+$OutputFile = "coral_user_report_automated_$Date.csv"
 
 # ── Helper: run a GraphQL query ───────────────────────────────
 function Invoke-GQL {
@@ -256,7 +254,7 @@ Write-Host "   Deleted-member rows removed: $RemovedCount"
 # ── Step 5: Generate HTML executive report ────────────────────
 Write-Host "Generating HTML executive report..."
 
-$HtmlFile   = Join-Path $ReportsDir "coral_user_report_$Date.html"
+$HtmlFile   = "coral_user_report_automated_$Date.html"
 $ReportData = Import-Csv -Path $OutputFile -Encoding UTF8
 
 # Group by workspace
@@ -272,20 +270,6 @@ $InactiveUsers = $ReportData | Where-Object {
 
 # Guest / external users
 $GuestUsers = $ReportData | Where-Object { $_."User Role" -eq "Guest" } | Sort-Object -Property "Workspace"
-
-# New hires — joined within the last 30 days
-$NewHireCutoff     = (Get-Date).AddDays(-30)
-$NewHires          = $ReportData | Where-Object {
-    $j = $_."Joined"
-    if (-not $j) { return $false }
-    try { [datetime]::Parse($j) -gt $NewHireCutoff } catch { $false }
-} | Sort-Object -Property "Joined" -Descending
-
-$NewHireWorkspaces = @($NewHires | Select-Object -ExpandProperty "Workspace" -Unique | Sort-Object)
-$WsOptions = ($NewHireWorkspaces | ForEach-Object {
-    $esc = $_ -replace '"', '&quot;'
-    "<option value=`"$esc`">$_</option>"
-}) -join "`n"
 
 function Format-HtmlDate { param([string]$d) if ($d.Length -ge 10) { $d.Substring(0,10) } else { $d } }
 
@@ -347,22 +331,6 @@ $GuestRows = foreach ($u in $GuestUsers) {
 "@
 }
 
-# ── New hire rows ──
-$NewHireRows = foreach ($u in $NewHires) {
-    $wsAttr = ($u.Workspace -replace '"', '&quot;')
-    $stAttr = ($u.Status    -replace '"', '&quot;')
-    @"
-    <tr class="new-hire" data-workspace="$wsAttr" data-status="$stAttr">
-      <td>$($u.Name)</td>
-      <td>$($u.Email)</td>
-      <td>$($u.Workspace)</td>
-      <td>$($u."User Role")</td>
-      <td>$($u.Status)</td>
-      <td>$(Format-HtmlDate $u.Joined)</td>
-    </tr>
-"@
-}
-
 # ── Helper: render a table section or an empty-state message ──
 function Section-Table {
     param([string]$Title, [string]$Head, [string[]]$Rows, [string]$EmptyMsg)
@@ -392,32 +360,6 @@ $GuestSection = Section-Table `
     -Rows     $GuestRows `
     -EmptyMsg "No guest users found."
 
-$NewHireInner = if ($NewHireRows.Count -gt 0) {
-    @"
-<div class="filter-bar">
-  <label for="ws-filter">Workspace</label>
-  <select id="ws-filter" onchange="filterNewHires()">
-    <option value="">All Workspaces</option>
-    $WsOptions
-  </select>
-  <label for="st-filter">Status</label>
-  <select id="st-filter" onchange="filterNewHires()">
-    <option value="">All</option>
-    <option value="Active">Active</option>
-    <option value="Inactive">Inactive</option>
-  </select>
-  <span class="filter-count" id="hire-count">$($NewHires.Count) hire(s)</span>
-</div>
-<table id="new-hire-table">
-  <thead><tr><th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
-  <tbody>$($NewHireRows -join '')</tbody>
-</table>
-"@
-} else {
-    "<p class='empty'>No new hires in the last 30 days.</p>"
-}
-$NewHireSection = "<section><h2>New Hires &mdash; Last 30 Days</h2>$NewHireInner</section>"
-
 $Html = @"
 <!DOCTYPE html>
 <html lang="en">
@@ -446,12 +388,6 @@ $Html = @"
   a { color: #0052cc; text-decoration: none; }
   a:hover { text-decoration: underline; }
   .empty { color: #7a869a; font-style: italic; padding: 16px 20px; font-size: 13px; }
-  .new-hire td { background: #e8f0fe; }
-  tr.new-hire:hover td { background: #d2e3fc; }
-  .filter-bar { padding: 12px 20px; border-bottom: 1px solid #ebecf0; display: flex; align-items: center; gap: 12px; }
-  .filter-bar label { font-size: 12px; font-weight: 700; color: #5e6c84; text-transform: uppercase; letter-spacing: .05em; }
-  .filter-bar select { font-size: 13px; padding: 5px 10px; border: 1px solid #dfe1e6; border-radius: 4px; color: #172b4d; cursor: pointer; }
-  .filter-count { font-size: 12px; color: #5e6c84; }
 </style>
 </head>
 <body>
@@ -460,71 +396,13 @@ $Html = @"
   <p>Generated $Date &nbsp;&bull;&nbsp; $RowCount users across $($WorkspaceGroups.Count) workspaces &nbsp;&bull;&nbsp; Source: $OutputFile</p>
 </header>
 <main>
-$NewHireSection
 $WsSection
 $InactiveSection
 $GuestSection
 </main>
-<script>
-function filterNewHires() {
-  var ws = document.getElementById('ws-filter').value;
-  var st = document.getElementById('st-filter').value;
-  var rows = document.querySelectorAll('#new-hire-table tbody tr');
-  var visible = 0;
-  rows.forEach(function(row) {
-    var show = (!ws || row.dataset.workspace === ws) &&
-               (!st || row.dataset.status === st);
-    row.style.display = show ? '' : 'none';
-    if (show) visible++;
-  });
-  document.getElementById('hire-count').textContent = visible + ' hire(s)';
-}
-</script>
 </body>
 </html>
 "@
 
 Set-Content -Path $HtmlFile -Value $Html -Encoding UTF8
 Write-Host "   HTML report saved to: $HtmlFile"
-
-# ── Step 6: Generate Excel report ─────────────────────────────
-Write-Host "Generating Excel report..."
-$ExcelFile = Join-Path $ReportsDir "coral_user_report_$Date.xlsx"
-
-try {
-    if (Test-Path $ExcelFile) { Remove-Item $ExcelFile -Force -ErrorAction Stop }
-
-    $ExcelPackage = $ReportData | Export-Excel -Path $ExcelFile -WorksheetName "Users" `
-        -AutoFilter -FreezeTopRow -BoldTopRow -AutoSize -PassThru
-
-    $Sheet   = $ExcelPackage.Workbook.Worksheets["Users"]
-    $LastCol = $Sheet.Dimension.End.Column
-    $LastRow = $Sheet.Dimension.End.Row
-
-    # Locate the "Joined" column
-    $JoinedIdx = 1
-    for ($c = 1; $c -le $LastCol; $c++) {
-        if ($Sheet.Cells[1, $c].Value -eq "Joined") { $JoinedIdx = $c; break }
-    }
-
-    # Blue fill (#e8f0fe) for any row whose Joined date is within the last 30 days
-    $BlueColor = [System.Drawing.Color]::FromArgb(232, 240, 254)
-    $XlCutoff  = (Get-Date).AddDays(-30)
-    for ($r = 2; $r -le $LastRow; $r++) {
-        $jVal = $Sheet.Cells[$r, $JoinedIdx].Value
-        if ($jVal) {
-            try {
-                if ([datetime]::Parse($jVal) -gt $XlCutoff) {
-                    $range = $Sheet.Cells[$r, 1, $r, $LastCol]
-                    $range.Style.Fill.PatternType = [OfficeOpenXml.Style.ExcelFillStyle]::Solid
-                    $range.Style.Fill.BackgroundColor.SetColor($BlueColor)
-                }
-            } catch {}
-        }
-    }
-
-    Close-ExcelPackage $ExcelPackage
-    Write-Host "   Excel report saved to: $ExcelFile"
-} catch {
-    Write-Warning "Excel report skipped - close '$ExcelFile' in Excel and re-run to generate it."
-}

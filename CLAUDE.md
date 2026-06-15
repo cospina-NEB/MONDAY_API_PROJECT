@@ -4,7 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Project Does
 
-Automates generation of the "Coral User Report" — a CSV mapping of Monday.com workspaces to their members with role, status, team, and activity data. It replaces a manual XLSX process and outputs `coral_user_report_YYYY-MM-DD.csv`.
+Automates generation of the "Coral User Report" — a CSV mapping of Monday.com workspaces to their members with role, status, team, and activity data. It replaces a manual XLSX process and outputs three files per run:
+- `coral_user_report_YYYY-MM-DD.csv` — raw data
+- `coral_user_report_YYYY-MM-DD.html` — executive HTML report with new-hire highlighting and workspace filter
+- `coral_user_report_YYYY-MM-DD.xlsx` — Excel workbook with new-hire rows highlighted blue (requires ImportExcel module)
 
 ## Running the Script
 
@@ -17,6 +20,11 @@ Or double-click `RunScript.bat` (bypasses execution policy automatically).
 Requires a `.env` file in the project root:
 ```
 MONDAY_API_TOKEN=<your_token>
+```
+
+The Excel output requires the ImportExcel module (one-time install):
+```powershell
+Install-Module ImportExcel -MinimumVersion 7.0 -Force -Scope CurrentUser -SkipPublisherCheck
 ```
 
 ## Testing

@@ -55,13 +55,14 @@ $SiteInfo = Invoke-RestMethod `
 $SiteId = $SiteInfo.id
 Write-Host "  Site ID: $SiteId"
 
-# 3. Upload today's CSV and HTML
-$Date     = Get-Date -Format "yyyy-MM-dd"
-$Files    = @("coral_user_report_$Date.csv", "coral_user_report_$Date.html")
-$Uploaded = 0
+# 3. Upload today's CSV, HTML, and Excel from the Reports subfolder
+$Date       = Get-Date -Format "yyyy-MM-dd"
+$ReportsDir = Join-Path $ScriptDir "Reports"
+$Files      = @("coral_user_report_$Date.csv", "coral_user_report_$Date.html", "coral_user_report_$Date.xlsx")
+$Uploaded   = 0
 
 foreach ($File in $Files) {
-    $FullPath = Join-Path $ScriptDir $File
+    $FullPath = Join-Path $ReportsDir $File
     if (-not (Test-Path $FullPath)) {
         Write-Warning "File not found, skipping: $File"
         continue
@@ -71,7 +72,7 @@ foreach ($File in $Files) {
     # Encode each path segment individually, then rejoin with /
     $EncodedFolder = ($FolderPath -split '/') | ForEach-Object { [System.Uri]::EscapeDataString($_) }
     $EncodedName   = [System.Uri]::EscapeDataString($FileName)
-    $UploadUri     = "https://graph.microsoft.com/v1.0/sites/$SiteId/drive/root:/$($EncodedFolder -join '/')/$EncodedName:/content"
+    $UploadUri     = "https://graph.microsoft.com/v1.0/sites/$SiteId/drive/root:/$($EncodedFolder -join '/')/${EncodedName}:/content"
 
     Write-Host "Uploading $FileName..."
     $FileBytes = [System.IO.File]::ReadAllBytes($FullPath)
