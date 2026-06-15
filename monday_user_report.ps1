@@ -82,7 +82,7 @@ if ($WorkspacesResult.PSObject.Properties['errors']) {
 }
 
 # ── Step 2: Write CSV header ──────────────────────────────────
-$Header = "Workspace,Name,Email,User Role,Status,Teams,Joined,Last Active,2FA,Workspace URL"
+$Header = "Workspace,Name,Email,User Role,Status,Teams,Joined,Last Active,Invited By,2FA,Workspace URL"
 Set-Content -Path $OutputFile -Value $Header -Encoding UTF8
 
 # ── Step 3: For each workspace, fetch members ─────────────────
@@ -209,8 +209,8 @@ query {
         $Joined     = if ($Member.created_at)     { $Member.created_at }     else { "" }
         $LastActive = if ($Member.last_activity)  { $Member.last_activity }  else { "Never logged in" }
 
-        # Invited By (not available via workspace users_subscribers)
-        #$InvitedBy = "N/A"
+        # Invited By — not exposed by the Monday.com public API
+        $InvitedBy = "N/A"
 
         # Build CSV row
         $Row = @(
@@ -218,12 +218,11 @@ query {
             $Member.name,
             $Member.email,
             $Role,
-            #$Products,
             $Status,
             $Teams,
             $Joined,
-            #$InvitedBy,
             $LastActive,
+            $InvitedBy,
             "Disabled",
             $WsUrl
         ) | ForEach-Object { ConvertTo-CsvField $_ }
@@ -359,14 +358,16 @@ $NewHireRows = foreach ($u in $NewHires) {
       <td>$($u."User Role")</td>
       <td>$($u.Status)</td>
       <td>$(Format-HtmlDate $u.Joined)</td>
+      <td>$($u."Invited By")</td>
     </tr>
 "@
 }
 
 # ── Helper: render a table section or an empty-state message ──
-function Section-Table {
+function New-HtmlSection {
     param([string]$Title, [string]$Head, [string[]]$Rows, [string]$EmptyMsg)
-    $inner = if ($Rows.Count -gt 0) {
+    $rowCount = ($Rows | Measure-Object).Count
+    $inner = if ($rowCount -gt 0) {
         "<table><thead><tr>$Head</tr></thead><tbody>$($Rows -join '')</tbody></table>"
     } else {
         "<p class='empty'>$EmptyMsg</p>"
@@ -374,19 +375,19 @@ function Section-Table {
     "<section><h2>$Title</h2>$inner</section>"
 }
 
-$WsSection = Section-Table `
+$WsSection = New-HtmlSection `
     -Title    "Workspace Breakdown" `
     -Head     "<th>Workspace</th><th>Total</th><th>Admins</th><th>Members</th><th>Viewers</th><th>Guests</th><th>Active</th><th>Inactive</th>" `
     -Rows     $WsRows `
     -EmptyMsg "No workspace data."
 
-$InactiveSection = Section-Table `
+$InactiveSection = New-HtmlSection `
     -Title    "Inactive Users (30+ days without login)" `
     -Head     "<th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Last Active</th>" `
     -Rows     $InactiveRows `
     -EmptyMsg "No inactive users found."
 
-$GuestSection = Section-Table `
+$GuestSection = New-HtmlSection `
     -Title    "Guest / External Users" `
     -Head     "<th>Name</th><th>Email</th><th>Workspace</th><th>Status</th><th>Joined</th>" `
     -Rows     $GuestRows `
@@ -409,7 +410,7 @@ $NewHireInner = if ($NewHireRows.Count -gt 0) {
   <span class="filter-count" id="hire-count">$($NewHires.Count) hire(s)</span>
 </div>
 <table id="new-hire-table">
-  <thead><tr><th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Status</th><th>Joined</th></tr></thead>
+  <thead><tr><th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Status</th><th>Joined</th><th>Invited By</th></tr></thead>
   <tbody>$($NewHireRows -join '')</tbody>
 </table>
 "@
