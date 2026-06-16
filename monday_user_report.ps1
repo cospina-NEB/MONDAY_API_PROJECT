@@ -117,6 +117,11 @@ query {
     teams {
       name
     }
+    invited_by {
+      id
+      name
+      email
+    }
   }
 }
 "@
@@ -155,6 +160,11 @@ query {
       is_view_only
       teams {
         name
+      }
+      invited_by {
+        id
+        name
+        email
       }
     }
   }
@@ -195,6 +205,9 @@ query {
                 elseif ($Member.is_view_only) { "Viewer" }
                 else                          { "Member" }
 
+        # Invited By
+        $InvitedBy = if ($Member.invited_by) { $Member.invited_by.name } else { "N/A" }
+
         # Products (not available via workspace users_subscribers)
         #$Products = "N/A"
 
@@ -208,9 +221,6 @@ query {
         # Dates
         $Joined     = if ($Member.created_at)     { $Member.created_at }     else { "" }
         $LastActive = if ($Member.last_activity)  { $Member.last_activity }  else { "Never logged in" }
-
-        # Invited By — not exposed by the Monday.com public API
-        $InvitedBy = "N/A"
 
         # Build CSV row
         $Row = @(

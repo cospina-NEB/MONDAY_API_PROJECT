@@ -1,0 +1,18 @@
+$kind: http-request
+name: 'Get Workspace Subscribers (Closed Workspaces)'
+method: POST
+url: '{{monday_base_url}}'
+order: 3000
+headers:
+  - key: Authorization
+    value: '{{MONDAY_API_TOKEN}}'
+  - key: API-Version
+    value: '2024-07'
+  - key: Content-Type
+    value: 'application/json'
+body:
+  type: json
+  content: |-
+    {
+      "query": "query { workspaces(ids: [{{workspace_id}}]) { members: users_subscribers(limit: {{page_size}}, page: {{page}}) { id name email is_admin is_guest enabled created_at last_activity is_view_only teams { name } invited_by { id name email } } } }"
+    }

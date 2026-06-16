@@ -64,11 +64,12 @@ The project is a single PowerShell script (`monday_user_report.ps1`) with no bui
 - `Build-CsvRow` — main data pipeline; calls role/status/teams getters and assembles the 10-column row
 - Role/Status/Teams getter functions — normalize raw API values to report-friendly strings
 
-**CSV output columns (in order):** Workspace, Name, Email, User Role, Status, Teams, Joined, Last Active, 2FA, Workspace URL
+**CSV output columns (in order):** Workspace, Name, Email, User Role, Status, Teams, Joined, Last Active, Invited By, 2FA, Workspace URL
 
 **Known API limitations (hardcoded placeholders):**
 - `2FA` is always `"Disabled"` — not exposed by the API
 - `Products` is always `"N/A"` — not available via `users_subscribers`
+- `Invited By` is `"N/A"` for users with no inviter (e.g. original account owner)
 - Pending invitations are not visible via the API
 
 ## Automation & SharePoint Upload

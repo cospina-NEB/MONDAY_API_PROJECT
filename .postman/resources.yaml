@@ -1,0 +1,7 @@
+# Use this workspace to collaborate
+workspace:
+  id: 8e0995bb-9629-48a3-8f8e-d09f138003a2
+
+localResources:
+  specs:
+    - ..\query.graphql

@@ -1,0 +1,17 @@
+$kind: http-request
+method: POST
+url: '{{monday_base_url}}'
+order: 1000
+headers:
+  - key: Authorization
+    value: '{{MONDAY_API_TOKEN}}'
+  - key: API-Version
+    value: '2024-07'
+  - key: Content-Type
+    value: 'application/json'
+body:
+  type: json
+  content: |-
+    {
+      "query": "query { workspaces(limit: 100) { id name kind } }"
+    }

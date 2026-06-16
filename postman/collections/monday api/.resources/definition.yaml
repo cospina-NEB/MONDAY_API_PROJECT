@@ -1,0 +1,13 @@
+$kind: collection
+name: 'Monday API'
+variables:
+  - key: MONDAY_API_TOKEN
+    value: ''
+  - key: monday_base_url
+    value: 'https://api.monday.com/v2'
+  - key: workspace_id
+    value: '15284606'
+  - key: page
+    value: '1'
+  - key: page_size
+    value: '100'
