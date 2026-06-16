@@ -69,7 +69,7 @@ The project is a single PowerShell script (`monday_user_report.ps1`) with no bui
 **Known API limitations (hardcoded placeholders):**
 - `2FA` is always `"Disabled"` — not exposed by the API
 - `Products` is always `"N/A"` — not available via `users_subscribers`
-- `Invited By` is `"N/A"` for users with no inviter (e.g. original account owner)
+- `Invited By` is always `"N/A"` — the `invited_by` field does not exist on the `User` GraphQL type (confirmed via schema introspection June 2026); may be accessible via a REST/Postman endpoint outside the standard GraphQL API
 - Pending invitations are not visible via the API
 
 ## Automation & SharePoint Upload

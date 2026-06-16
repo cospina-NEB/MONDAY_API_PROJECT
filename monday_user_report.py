@@ -153,7 +153,6 @@ query {{
   users(limit: {page_size}, page: {page}, kind: all) {{
     id name email is_admin is_guest enabled created_at last_activity is_view_only
     teams {{ name }}
-    invited_by {{ id name email }}
   }}
 }}"""
             result  = run_gql(query)
@@ -166,7 +165,6 @@ query {{
     members: users_subscribers(limit: {page_size}, page: {page}) {{
       id name email is_admin is_guest enabled created_at last_activity is_view_only
       teams {{ name }}
-      invited_by {{ id name email }}
     }}
   }}
 }}"""
@@ -204,7 +202,7 @@ query {{
             "Teams":         get_teams(m),
             "Joined":        m.get("created_at") or "",
             "Last Active":   m.get("last_activity") or "Never logged in",
-            "Invited By":    (m.get("invited_by") or {}).get("name") or "N/A",
+            "Invited By":    "N/A",
             "2FA":           "Disabled",
             "Workspace URL": ws_url,
         })

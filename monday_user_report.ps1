@@ -117,11 +117,6 @@ query {
     teams {
       name
     }
-    invited_by {
-      id
-      name
-      email
-    }
   }
 }
 "@
@@ -160,11 +155,6 @@ query {
       is_view_only
       teams {
         name
-      }
-      invited_by {
-        id
-        name
-        email
       }
     }
   }
