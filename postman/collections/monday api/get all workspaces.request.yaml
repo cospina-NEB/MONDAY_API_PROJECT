@@ -1,14 +1,14 @@
 $kind: http-request
+name: get all workspaces
 method: POST
-url: '{{monday_base_url}}'
+url: "{{monday_base_url}}"
+auth:
+  type: noauth
 order: 1000
 headers:
-  - key: Authorization
-    value: '{{MONDAY_API_TOKEN}}'
-  - key: API-Version
-    value: '2024-07'
-  - key: Content-Type
-    value: 'application/json'
+  Authorization: "{{MONDAY_API_TOKEN}}"
+  API-Version: 2024-07
+  Content-Type: application/json
 body:
   type: json
   content: |-

@@ -1,0 +1,23 @@
+$kind: graphql-request
+name: https://api.monday.com/v2
+url: https://api.monday.com/v2
+query: "query GetUser($userId: ID!) {\r
+
+  \  user(id: $userId) {\r
+
+  \    name\r
+
+  \    email\r
+
+  \  }\r
+
+  }"
+variables: ""
+headers:
+  Authorization: MONDAY_API_TOKEN
+auth:
+  type: apikey
+  credentials:
+    key: MONDAY_API_TOKN
+    value: "{{json_web_token_0t9r}}"
+order: 1918065860151544

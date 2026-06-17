@@ -1,8 +1,6 @@
 $kind: http-request
-name: Get All Users (Open Workspaces)
-method: POST
 url: "{{monday_base_url}}"
-order: 3000
+method: POST
 headers:
   Authorization: "{{MONDAY_API_TOKEN}}"
   API-Version: 2024-07
@@ -13,3 +11,4 @@ body:
     {
       "query": "query { users(limit: {{page_size}}, page: {{page}}, kind: all) { id name email is_admin is_guest enabled created_at last_activity is_view_only teams { name }  } }"
     }
+order: 2096

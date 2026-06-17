@@ -1,13 +1,24 @@
 $kind: collection
-name: 'Monday API'
+name: Monday API
 variables:
   - key: MONDAY_API_TOKEN
-    value: ''
+    value: ""
+    secret: false
   - key: monday_base_url
-    value: 'https://api.monday.com/v2'
+    value: https://api.monday.com/v2
+    secret: false
   - key: workspace_id
-    value: '15284606'
+    value: "15284606"
+    secret: false
   - key: page
-    value: '1'
+    value: "1"
+    secret: false
   - key: page_size
-    value: '100'
+    value: "100"
+    secret: false
+  - key: auth_secret_0t9r
+    secret: true
+  - key: supabase_service_role_api_key_0t9r
+    secret: true
+  - key: json_web_token_0t9r
+    secret: true
