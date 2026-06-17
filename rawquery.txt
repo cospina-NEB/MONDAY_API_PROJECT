@@ -1,0 +1,40 @@
+query AuditFull {
+  users(limit: 100, page: 1, kind: all) {
+    id
+    name
+    email
+    is_admin
+    is_guest
+    enabled
+    invitation_method
+    created_at
+    last_activity
+    is_view_only
+    teams {
+      name
+    }
+  }
+  
+  audit_logs(
+    events: [
+      "monday-user-invite"
+      "user-invite"
+    ]
+    limit: 100
+  ) {
+    logs {
+      timestamp
+      event
+      user {
+        id
+        name
+        email
+      }
+      activity_metadata
+    }
+    pagination {
+      has_more_pages
+      next_page_number
+    }
+  }
+}

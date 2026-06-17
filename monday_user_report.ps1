@@ -81,6 +81,35 @@ if ($WorkspacesResult.PSObject.Properties['errors']) {
     exit 1
 }
 
+# ── Step 1.5: Fetch audit logs to map invitee email → inviter name ──
+Write-Host "Fetching audit logs..."
+$InviterByEmail = @{}
+$AuditPage      = 1
+$AuditHasMore   = $true
+while ($AuditHasMore) {
+    $AuditQuery  = 'query { audit_logs(events: ["monday-user-invite","user-invite"] limit: 100 page: ' + $AuditPage + ') { logs { user { name } activity_metadata } pagination { has_more_pages next_page_number } } }'
+    $AuditResult = Invoke-GQL -Query $AuditQuery
+    if ($AuditResult.PSObject.Properties['errors']) {
+        Write-Warning "Could not fetch audit logs (admin token required) - invitation method names will not be resolved."
+        break
+    }
+    $AuditLogs       = $AuditResult.data.audit_logs.logs
+    $AuditPagination = $AuditResult.data.audit_logs.pagination
+    foreach ($Log in $AuditLogs) {
+        try {
+            $InviteeEmail = $Log.activity_metadata.affected_user_email
+            $InviterName  = $Log.user.name
+            if ($InviteeEmail -and $InviterName -and -not $InviterByEmail.ContainsKey($InviteeEmail)) {
+                $InviterByEmail[$InviteeEmail] = $InviterName
+            }
+        } catch { }
+    }
+    $AuditHasMore = [bool]$AuditPagination.has_more_pages
+    $AuditPage    = $AuditPagination.next_page_number
+    Start-Sleep -Milliseconds 150
+}
+Write-Host "   Audit log entries indexed: $($InviterByEmail.Count)"
+
 # ── Step 2: Write CSV header ──────────────────────────────────
 $Header = "Workspace,Name,Email,User Role,Status,Teams,Joined,Last Active,Invitation Method,2FA,Workspace URL"
 Set-Content -Path $OutputFile -Value $Header -Encoding UTF8
@@ -197,7 +226,13 @@ query {
         }
 
         # Invitation Method
-        $InvitationMethod = if ($Member.invitation_method) { $Member.invitation_method } else { "N/A" }
+        $InvitationMethod = if (-not $Member.invitation_method) {
+            "N/A"
+        } elseif ($Member.invitation_method -eq "user") {
+            if ($InviterByEmail.ContainsKey($Member.email)) { $InviterByEmail[$Member.email] } else { "user" }
+        } else {
+            $Member.invitation_method
+        }
 
         # Status
         $Status = if ($Member.enabled) { "Active" } else { "Inactive" }

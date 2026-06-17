@@ -132,6 +132,37 @@ if "errors" in ws_result:
 workspaces = ws_result["data"]["workspaces"]
 print(f"Found {len(workspaces)} workspace(s).")
 
+# ── Step 1.5: Fetch audit logs to map invitee email → inviter name ──
+print("Fetching audit logs...")
+inviter_by_email: dict[str, str] = {}
+audit_page = 1
+while True:
+    audit_result = run_gql(
+        "query { audit_logs(events: [\"monday-user-invite\",\"user-invite\"] limit: 100 page: "
+        + str(audit_page)
+        + ") { logs { user { name } activity_metadata } pagination { has_more_pages next_page_number } } }"
+    )
+    if "errors" in audit_result:
+        print("   Warning: could not fetch audit logs (admin token required) - invitation method names will not be resolved.")
+        break
+    audit_data   = (audit_result.get("data") or {}).get("audit_logs") or {}
+    logs         = audit_data.get("logs") or []
+    pagination   = audit_data.get("pagination") or {}
+    for log in logs:
+        try:
+            meta          = log.get("activity_metadata") or {}
+            invitee_email = meta.get("affected_user_email", "") if isinstance(meta, dict) else ""
+            inviter_name  = (log.get("user") or {}).get("name", "")
+            if invitee_email and inviter_name and invitee_email not in inviter_by_email:
+                inviter_by_email[invitee_email] = inviter_name
+        except Exception:
+            pass
+    time.sleep(0.15)
+    if not pagination.get("has_more_pages"):
+        break
+    audit_page = pagination["next_page_number"]
+print(f"   Audit log entries indexed: {len(inviter_by_email)}")
+
 # ── Step 2 & 3: Iterate workspaces, collect rows ───────────────
 rows: list[dict] = []
 
@@ -204,7 +235,11 @@ query {{
             "Teams":         get_teams(m),
             "Joined":        m.get("created_at") or "",
             "Last Active":   m.get("last_activity") or "Never logged in",
-            "Invitation Method": m.get("invitation_method") or "N/A",
+            "Invitation Method": (
+                inviter_by_email.get(m.get("email", ""), "user")
+                if (m.get("invitation_method") or "") == "user"
+                else (m.get("invitation_method") or "N/A")
+            ),
             "2FA":           "Disabled",
             "Workspace URL": ws_url,
         })
