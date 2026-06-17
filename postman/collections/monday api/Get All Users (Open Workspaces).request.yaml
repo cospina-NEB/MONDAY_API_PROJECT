@@ -1,5 +1,6 @@
 $kind: http-request
-url: "{{monday_base_url}}"
+name: Get All Users (Open Workspaces)
+url: https://api.monday.com/v2
 method: POST
 headers:
   Authorization: "{{MONDAY_API_TOKEN}}"

@@ -1,0 +1,93 @@
+$kind: graphql-example
+name: https://api.monday.com/v2
+auth:
+  type: noauth
+request:
+  url: https://api.monday.com/v2
+  query: "query AuditB {\r
+
+    \  users(limit: 100, page: 1, kind: all) {\r
+
+    \    id\r
+
+    \    name\r
+
+    \    email\r
+
+    \    is_admin\r
+
+    \    is_guest\r
+
+    \    enabled\r
+
+    \    inviation_method\r
+
+    \    created_at\r
+
+    \    last_activity\r
+
+    \    is_view_only\r
+
+    \    teams {\r
+
+    \      name\r
+
+    \    }\r
+
+    \  }\r
+
+    }"
+  variables: ""
+  headers:
+    Authorization: eyJhbGciOiJIUzI1NiJ9.eyJ0aWQiOjY1NTQyNzYzOSwiYWFpIjoxMSwidWlkIjo2NjEwMzM1NCwiaWFkIjoiMjAyNi0wNS0wN1QxNzoxMjoyNS4wMDBaIiwicGVyIjoibWU6d3JpdGUiLCJhY3RpZCI6MjUyNTIwNDksInJnbiI6InVzZTEifQ.WJkK1tUgfzcMXN7nfNJDMSefMNUu-kWzubXBamC_7MU
+    Version: 2026-07
+  operationType: query
+  operationName: AuditB
+response:
+  events:
+    - id: 45dade21-c7f7-45fd-b709-eef09dadf5f5
+      type: received-response
+      content: |-
+        {
+            "errors": [
+                {
+                    "message": "Cannot query field \"inviation_method\" on type \"User\".",
+                    "locations": [
+                        {
+                            "line": 9,
+                            "column": 5
+                        }
+                    ]
+                }
+            ],
+            "extensions": {
+                "request_id": "f1c26ce8-68e9-92cf-9954-61084954ffda"
+            }
+        }
+  http:
+    status: 200 OK
+    headers:
+      date: Wed, 17 Jun 2026 15:00:31 GMT
+      content-type: application/json
+      transfer-encoding: chunked
+      connection: keep-alive
+      api-version: 2026-04
+      ratelimit: '"minuteRate";r=7333, "concurrency";r=499, "complexityMinute";r=0'
+      ratelimit-policy: '"minuteRate";q=7335;w=60, "concurrency";q=500;qu="concurrent-requests", "complexityMinute";q=10000000;w=60;qu="content-bytes"'
+      x-api-gateway: "true"
+      x-api-router: "true"
+      x-request-id: f1c26ce8-68e9-92cf-9954-61084954ffda
+      x-envoy-upstream-service-time: "423"
+      content-security-policy: ;
+      content-security-policy-report-only: frame-ancestors https://*.monday.com; script-src 'self'; worker-src 'self'; connect-src 'self'; report-uri https://o916138.ingest.us.sentry.io/api/4507803872198656/security/?sentry_key=8e1fb7e952d4abfd146752c94791f51a&sentry_environment=production;
+      content-encoding: gzip
+      vary: Accept-Encoding
+      x-monday-rgn: use1, use1
+      server: cloudflare
+      x-routed-from: monday-us
+      x-routed-to: p-use1-m-platform-02-zinc
+      cf-cache-status: DYNAMIC
+      strict-transport-security: max-age=31536000; includeSubDomains
+      cf-ray: a0d2ec9bce28227d-EWR
+    body: '{"errors":[{"message":"Cannot query field \"inviation_method\" on type \"User\".","locations":[{"line":9,"column":5}]}],"extensions":{"request_id":"f1c26ce8-68e9-92cf-9954-61084954ffda"}}'
+order: 1781708446791

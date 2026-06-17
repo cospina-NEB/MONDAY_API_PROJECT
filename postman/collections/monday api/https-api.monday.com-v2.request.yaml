@@ -1,23 +1,44 @@
 $kind: graphql-request
 name: https://api.monday.com/v2
 url: https://api.monday.com/v2
-query: "query GetUser($userId: ID!) {\r
+query: "query AuditB {\r
 
-  \  user(id: $userId) {\r
+  \  users(limit: 100, page: 1, kind: all) {\r
+
+  \    id\r
 
   \    name\r
 
   \    email\r
+
+  \    is_admin\r
+
+  \    is_guest\r
+
+  \    enabled\r
+
+  \    inviation_method\r
+
+  \    created_at\r
+
+  \    last_activity\r
+
+  \    is_view_only\r
+
+  \    teams {\r
+
+  \      name\r
+
+  \    }\r
 
   \  }\r
 
   }"
 variables: ""
 headers:
-  Authorization: MONDAY_API_TOKEN
+  Authorization: "{{supabase_service_role_api_key_0t9r}}"
+  api-version: 2026-07
 auth:
-  type: apikey
-  credentials:
-    key: MONDAY_API_TOKN
-    value: "{{json_web_token_0t9r}}"
+  type: noauth
+examples: .resources/https-api.monday.com-v2.resources/examples
 order: 1918065860151544

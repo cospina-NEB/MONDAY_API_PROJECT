@@ -47,7 +47,7 @@ function Invoke-GQL {
         -Headers @{
             "Content-Type" = "application/json"
             "Authorization" = $Token
-            "API-Version"  = "2024-07"
+            "API-Version"  = "2026-07"
         } `
         -Body $Body
 
@@ -82,7 +82,7 @@ if ($WorkspacesResult.PSObject.Properties['errors']) {
 }
 
 # ── Step 2: Write CSV header ──────────────────────────────────
-$Header = "Workspace,Name,Email,User Role,Status,Teams,Joined,Last Active,Invited By,2FA,Workspace URL"
+$Header = "Workspace,Name,Email,User Role,Status,Teams,Joined,Last Active,Invitation Method,2FA,Workspace URL"
 Set-Content -Path $OutputFile -Value $Header -Encoding UTF8
 
 # ── Step 3: For each workspace, fetch members ─────────────────
@@ -108,12 +108,11 @@ query {
     id
     name
     email
-    is_admin
-    is_guest
+    kind
     enabled
+    invitation_method
     created_at
     last_activity
-    is_view_only
     teams {
       name
     }
@@ -147,12 +146,11 @@ query {
       id
       name
       email
-      is_admin
-      is_guest
+      kind
       enabled
+      invitation_method
       created_at
       last_activity
-      is_view_only
       teams {
         name
       }
@@ -190,16 +188,16 @@ query {
 
     foreach ($Member in $Members) {
         # Determine role
-        $Role = if     ($Member.is_admin)     { "Admin"  }
-                elseif ($Member.is_guest)     { "Guest"  }
-                elseif ($Member.is_view_only) { "Viewer" }
-                else                          { "Member" }
+        $Role = switch ($Member.kind) {
+            "admin"     { "Admin"   }
+            "guest"     { "Guest"   }
+            "view_only" { "Viewer"  }
+            "PENDING"   { "Pending" }
+            default     { "Member"  }
+        }
 
-        # Invited By
-        $InvitedBy = if ($Member.invited_by) { $Member.invited_by.name } else { "N/A" }
-
-        # Products (not available via workspace users_subscribers)
-        #$Products = "N/A"
+        # Invitation Method
+        $InvitationMethod = if ($Member.invitation_method) { $Member.invitation_method } else { "N/A" }
 
         # Status
         $Status = if ($Member.enabled) { "Active" } else { "Inactive" }
@@ -209,8 +207,8 @@ query {
         $Teams     = if ($TeamNames.Count -gt 0) { $TeamNames -join "; " } else { "No Teams" }
 
         # Dates
-        $Joined     = if ($Member.created_at)     { $Member.created_at }     else { "" }
-        $LastActive = if ($Member.last_activity)  { $Member.last_activity }  else { "Never logged in" }
+        $Joined     = if ($Member.created_at)    { $Member.created_at }    else { "" }
+        $LastActive = if ($Member.last_activity) { $Member.last_activity } else { "Never logged in" }
 
         # Build CSV row
         $Row = @(
@@ -222,7 +220,7 @@ query {
             $Teams,
             $Joined,
             $LastActive,
-            $InvitedBy,
+            $InvitationMethod,
             "Disabled",
             $WsUrl
         ) | ForEach-Object { ConvertTo-CsvField $_ }
@@ -286,6 +284,12 @@ $WsOptions = ($NewHireWorkspaces | ForEach-Object {
     "<option value=`"$esc`">$_</option>"
 }) -join "`n"
 
+$NewHireImValues = @($NewHires | Select-Object -ExpandProperty "Invitation Method" -Unique | Sort-Object)
+$ImOptions = ($NewHireImValues | ForEach-Object {
+    $esc = $_ -replace '"', '&quot;'
+    "<option value=`"$esc`">$_</option>"
+}) -join "`n"
+
 function Format-HtmlDate { param([string]$d) if ($d.Length -ge 10) { $d.Substring(0,10) } else { $d } }
 
 # ── Workspace breakdown rows ──
@@ -297,8 +301,8 @@ $WsRows = foreach ($grp in ($WorkspaceGroups | Sort-Object Name)) {
     $members  = @($u | Where-Object { $_."User Role" -eq "Member"  }).Count
     $viewers  = @($u | Where-Object { $_."User Role" -eq "Viewer"  }).Count
     $guests   = @($u | Where-Object { $_."User Role" -eq "Guest"   }).Count
-    $active   = @($u | Where-Object { $_."Status"    -eq "Active"  }).Count
-    $inactive = @($u | Where-Object { $_."Status"    -eq "Inactive" }).Count
+    $active   = @($u | Where-Object { $_."Status" -eq "Active"   }).Count
+    $inactive = @($u | Where-Object { $_."Status" -eq "Inactive" }).Count
     $inClass  = if ($inactive -gt 0) { " class='warn'" } else { "" }
     @"
     <tr>
@@ -348,17 +352,18 @@ $GuestRows = foreach ($u in $GuestUsers) {
 
 # ── New hire rows ──
 $NewHireRows = foreach ($u in $NewHires) {
-    $wsAttr = ($u.Workspace -replace '"', '&quot;')
-    $stAttr = ($u.Status    -replace '"', '&quot;')
+    $wsAttr = ($u.Workspace           -replace '"', '&quot;')
+    $stAttr = ($u.Status              -replace '"', '&quot;')
+    $imAttr = ($u."Invitation Method" -replace '"', '&quot;')
     @"
-    <tr class="new-hire" data-workspace="$wsAttr" data-status="$stAttr">
+    <tr class="new-hire" data-workspace="$wsAttr" data-status="$stAttr" data-invitation-method="$imAttr">
       <td>$($u.Name)</td>
       <td>$($u.Email)</td>
       <td>$($u.Workspace)</td>
       <td>$($u."User Role")</td>
       <td>$($u.Status)</td>
       <td>$(Format-HtmlDate $u.Joined)</td>
-      <td>$($u."Invited By")</td>
+      <td>$($u."Invitation Method")</td>
     </tr>
 "@
 }
@@ -407,10 +412,15 @@ $NewHireInner = if ($NewHireRows.Count -gt 0) {
     <option value="Active">Active</option>
     <option value="Inactive">Inactive</option>
   </select>
+  <label for="im-filter">Invitation Method</label>
+  <select id="im-filter" onchange="filterNewHires()">
+    <option value="">All</option>
+    $ImOptions
+  </select>
   <span class="filter-count" id="hire-count">$($NewHires.Count) hire(s)</span>
 </div>
 <table id="new-hire-table">
-  <thead><tr><th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Status</th><th>Joined</th><th>Invited By</th></tr></thead>
+  <thead><tr><th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Status</th><th>Joined</th><th>Invitation Method</th></tr></thead>
   <tbody>$($NewHireRows -join '')</tbody>
 </table>
 "@
@@ -470,11 +480,13 @@ $GuestSection
 function filterNewHires() {
   var ws = document.getElementById('ws-filter').value;
   var st = document.getElementById('st-filter').value;
+  var im = document.getElementById('im-filter').value;
   var rows = document.querySelectorAll('#new-hire-table tbody tr');
   var visible = 0;
   rows.forEach(function(row) {
     var show = (!ws || row.dataset.workspace === ws) &&
-               (!st || row.dataset.status === st);
+               (!st || row.dataset.status === st) &&
+               (!im || row.dataset.invitationMethod === im);
     row.style.display = show ? '' : 'none';
     if (show) visible++;
   });

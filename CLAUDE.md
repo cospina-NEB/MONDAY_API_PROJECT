@@ -64,12 +64,12 @@ The project is a single PowerShell script (`monday_user_report.ps1`) with no bui
 - `Build-CsvRow` — main data pipeline; calls role/status/teams getters and assembles the 10-column row
 - Role/Status/Teams getter functions — normalize raw API values to report-friendly strings
 
-**CSV output columns (in order):** Workspace, Name, Email, User Role, Status, Teams, Joined, Last Active, Invited By, 2FA, Workspace URL
+**CSV output columns (in order):** Workspace, Name, Email, User Role, Status, Teams, Joined, Last Active, Invitation Method, 2FA, Workspace URL
 
 **Known API limitations (hardcoded placeholders):**
 - `2FA` is always `"Disabled"` — not exposed by the API
 - `Products` is always `"N/A"` — not available via `users_subscribers`
-- `Invited By` is always `"N/A"` — the `invited_by` field does not exist on the `User` GraphQL type (confirmed via schema introspection June 2026); may be accessible via a REST/Postman endpoint outside the standard GraphQL API
+- `Invitation Method` — fetched from the `invitation_method` field on the `User` GraphQL type (e.g. `"email"`, `"link"`, `"api"`); returns `"N/A"` when the API returns null (e.g. the original account owner)
 - Pending invitations are not visible via the API
 
 ## Automation & SharePoint Upload
@@ -103,6 +103,6 @@ The workflow can also be triggered manually from the GitHub Actions UI via `work
 ## API Details
 
 - Endpoint: `https://api.monday.com/v2`
-- API version header: `2024-07` (pinned for schema stability)
+- API version header: `2026-07` (pinned for schema stability; required for `invitation_method` and the `kind` role field)
 - Rate limits: ~5,000 complexity points/minute — the built-in delays handle this
 - Reference queries: `query.graphql`

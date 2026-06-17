@@ -37,7 +37,7 @@ SCRIPT_DIR = Path(__file__).parent
 load_dotenv(SCRIPT_DIR / ".env")
 
 API_URL  = "https://api.monday.com/v2"
-API_VER  = "2024-07"
+API_VER  = "2026-07"
 TOKEN    = os.getenv("MONDAY_API_TOKEN")
 
 if not TOKEN:
@@ -53,7 +53,7 @@ OUTPUT_XLSX = REPORTS_DIR / f"coral_user_report_{DATE}.xlsx"
 
 CSV_COLUMNS = [
     "Workspace", "Name", "Email", "User Role", "Status",
-    "Teams", "Joined", "Last Active", "Invited By", "2FA", "Workspace URL",
+    "Teams", "Joined", "Last Active", "Invitation Method", "2FA", "Workspace URL",
 ]
 
 _HEADERS = {
@@ -71,9 +71,11 @@ def run_gql(query: str) -> dict:
 
 
 def get_role(member: dict) -> str:
-    if member.get("is_admin"):     return "Admin"
-    if member.get("is_guest"):     return "Guest"
-    if member.get("is_view_only"): return "Viewer"
+    k = member.get("kind") or ""
+    if k == "admin":     return "Admin"
+    if k == "guest":     return "Guest"
+    if k == "view_only": return "Viewer"
+    if k == "PENDING":   return "Pending"
     return "Member"
 
 
@@ -151,7 +153,7 @@ for ws in workspaces:
             query = f"""
 query {{
   users(limit: {page_size}, page: {page}, kind: all) {{
-    id name email is_admin is_guest enabled created_at last_activity is_view_only
+    id name email kind enabled created_at last_activity invitation_method
     teams {{ name }}
   }}
 }}"""
@@ -163,7 +165,7 @@ query {{
 query {{
   workspaces(ids: [{ws_id}]) {{
     members: users_subscribers(limit: {page_size}, page: {page}) {{
-      id name email is_admin is_guest enabled created_at last_activity is_view_only
+      id name email kind enabled created_at last_activity invitation_method
       teams {{ name }}
     }}
   }}
@@ -202,7 +204,7 @@ query {{
             "Teams":         get_teams(m),
             "Joined":        m.get("created_at") or "",
             "Last Active":   m.get("last_activity") or "Never logged in",
-            "Invited By":    "N/A",
+            "Invitation Method": m.get("invitation_method") or "N/A",
             "2FA":           "Disabled",
             "Workspace URL": ws_url,
         })
@@ -298,22 +300,27 @@ for u in guest_users:
       <td>{fmt_date(u["Joined"])}</td>
     </tr>""")
 
-# New hire rows + workspace filter options
+# New hire rows + filter options
 new_hire_workspaces = sorted({r["Workspace"] for r in new_hires})
 ws_options_html = "\n".join(
     f'    <option value="{esc(w)}">{esc(w)}</option>' for w in new_hire_workspaces
 )
 
+new_hire_im_values = sorted({r["Invitation Method"] for r in new_hires})
+im_options_html = "\n".join(
+    f'    <option value="{esc(v)}">{esc(v)}</option>' for v in new_hire_im_values
+)
+
 new_hire_rows_html = []
 for u in new_hires:
-    new_hire_rows_html.append(f"""    <tr class="new-hire" data-workspace="{esc(u['Workspace'])}" data-status="{esc(u['Status'])}">
+    new_hire_rows_html.append(f"""    <tr class="new-hire" data-workspace="{esc(u['Workspace'])}" data-status="{esc(u['Status'])}" data-invitation-method="{esc(u['Invitation Method'])}">
       <td>{esc(u["Name"])}</td>
       <td>{esc(u["Email"])}</td>
       <td>{esc(u["Workspace"])}</td>
       <td>{esc(u["User Role"])}</td>
       <td>{esc(u["Status"])}</td>
       <td>{fmt_date(u["Joined"])}</td>
-      <td>{esc(u["Invited By"])}</td>
+      <td>{esc(u["Invitation Method"])}</td>
     </tr>""")
 
 
@@ -355,10 +362,15 @@ if new_hire_rows_html:
     <option value="Active">Active</option>
     <option value="Inactive">Inactive</option>
   </select>
+  <label for="im-filter">Invitation Method</label>
+  <select id="im-filter" onchange="filterNewHires()">
+    <option value="">All</option>
+    {im_options_html}
+  </select>
   <span class="filter-count" id="hire-count">{len(new_hires)} hire(s)</span>
 </div>
 <table id="new-hire-table">
-  <thead><tr><th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Status</th><th>Joined</th><th>Invited By</th></tr></thead>
+  <thead><tr><th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Status</th><th>Joined</th><th>Invitation Method</th></tr></thead>
   <tbody>{"".join(new_hire_rows_html)}</tbody>
 </table>"""
 else:
@@ -416,11 +428,13 @@ html = f"""<!DOCTYPE html>
 function filterNewHires() {{
   var ws = document.getElementById('ws-filter').value;
   var st = document.getElementById('st-filter').value;
+  var im = document.getElementById('im-filter').value;
   var tableRows = document.querySelectorAll('#new-hire-table tbody tr');
   var visible = 0;
   tableRows.forEach(function(row) {{
     var show = (!ws || row.dataset.workspace === ws) &&
-               (!st || row.dataset.status === st);
+               (!st || row.dataset.status === st) &&
+               (!im || row.dataset.invitationMethod === im);
     row.style.display = show ? '' : 'none';
     if (show) visible++;
   }});
