@@ -59,9 +59,9 @@ The project is a single PowerShell script (`monday_user_report.ps1`) with no bui
 6. Strip any "Deleted member" rows from the final file
 
 **Key functions in `monday_user_report.ps1`:**
-- `Invoke-GQL` — HTTP layer; sends POST to `https://api.monday.com/v2` with auth headers and pinned API version `2024-07`
+- `Invoke-GQL` — HTTP layer; sends POST to `https://api.monday.com/v2` with auth headers and pinned API version `2026-07`
 - `ConvertTo-CsvField` — RFC 4180 CSV escaping (wraps in quotes, doubles embedded quotes)
-- `Build-CsvRow` — main data pipeline; calls role/status/teams getters and assembles the 10-column row
+- `Build-CsvRow` — main data pipeline; calls role/status/teams getters and assembles the 11-column row
 - Role/Status/Teams getter functions — normalize raw API values to report-friendly strings
 
 **CSV output columns (in order):** Workspace, Name, Email, User Role, Status, Teams, Joined, Last Active, Invitation Method, 2FA, Workspace URL

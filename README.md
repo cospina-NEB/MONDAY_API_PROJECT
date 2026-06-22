@@ -32,6 +32,8 @@ Each run writes three files to the `Reports/` folder:
 
 ### HTML Report Sections
 
+All tables have sortable column headers — click a header to sort ascending (↑), click again for descending (↓), click a third time to reset (⇅). Each table sorts independently.
+
 - **New Hires (last 30 days)** — users whose `Joined` date is within the past 30 days; filterable by workspace, status, and invitation method
 - **Workspace Breakdown** — per-workspace totals for each role and active/inactive counts
 - **Inactive Users** — users who have never logged in or whose last activity is older than 30 days
