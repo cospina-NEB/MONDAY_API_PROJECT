@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # monday_user_report.ps1
 # Generates a Workspace -> User mapping report for Monday.com
 # Replicates the Coral User Report (manual XLSX) via API
@@ -417,19 +417,19 @@ function New-HtmlSection {
 
 $WsSection = New-HtmlSection `
     -Title    "Workspace Breakdown" `
-    -Head     "<th>Workspace</th><th>Total</th><th>Admins</th><th>Members</th><th>Viewers</th><th>Guests</th><th>Active</th><th>Inactive</th>" `
+    -Head     "<th class='sortable' onclick='sortTable(this)'>Workspace<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)' data-type='num'>Total<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)' data-type='num'>Admins<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)' data-type='num'>Members<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)' data-type='num'>Viewers<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)' data-type='num'>Guests<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)' data-type='num'>Active<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)' data-type='num'>Inactive<span class='sort-icon'>&#8645;</span></th>" `
     -Rows     $WsRows `
     -EmptyMsg "No workspace data."
 
 $InactiveSection = New-HtmlSection `
     -Title    "Inactive Users (30+ days without login)" `
-    -Head     "<th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Last Active</th>" `
+    -Head     "<th class='sortable' onclick='sortTable(this)'>Name<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)'>Email<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)'>Workspace<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)'>Role<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)'>Last Active<span class='sort-icon'>&#8645;</span></th>" `
     -Rows     $InactiveRows `
     -EmptyMsg "No inactive users found."
 
 $GuestSection = New-HtmlSection `
     -Title    "Guest / External Users" `
-    -Head     "<th>Name</th><th>Email</th><th>Workspace</th><th>Status</th><th>Joined</th>" `
+    -Head     "<th class='sortable' onclick='sortTable(this)'>Name<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)'>Email<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)'>Workspace<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)'>Status<span class='sort-icon'>&#8645;</span></th><th class='sortable' onclick='sortTable(this)'>Joined<span class='sort-icon'>&#8645;</span></th>" `
     -Rows     $GuestRows `
     -EmptyMsg "No guest users found."
 
@@ -455,7 +455,7 @@ $NewHireInner = if ($NewHireRows.Count -gt 0) {
   <span class="filter-count" id="hire-count">$($NewHires.Count) hire(s)</span>
 </div>
 <table id="new-hire-table">
-  <thead><tr><th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Status</th><th>Joined</th><th>Invitation Method</th></tr></thead>
+  <thead><tr><th class="sortable" onclick="sortTable(this)">Name<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Email<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Workspace<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Role<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Status<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Joined<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Invitation Method<span class="sort-icon">&#8645;</span></th></tr></thead>
   <tbody>$($NewHireRows -join '')</tbody>
 </table>
 "@
@@ -498,6 +498,12 @@ $Html = @"
   .filter-bar label { font-size: 12px; font-weight: 700; color: #5e6c84; text-transform: uppercase; letter-spacing: .05em; }
   .filter-bar select { font-size: 13px; padding: 5px 10px; border: 1px solid #dfe1e6; border-radius: 4px; color: #172b4d; cursor: pointer; }
   .filter-count { font-size: 12px; color: #5e6c84; }
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { background: #e8eaed; color: #172b4d; }
+  th.sortable[data-sort="asc"],th.sortable[data-sort="desc"] { color: #0052cc; }
+  .sort-icon { display: inline-block; margin-left: 5px; font-size: 10px; color: #b3bac5; vertical-align: middle; transition: color .15s; }
+  th.sortable:hover .sort-icon { color: #5e6c84; }
+  th.sortable[data-sort="asc"] .sort-icon,th.sortable[data-sort="desc"] .sort-icon { color: #0052cc; }
 </style>
 </head>
 <body>
@@ -526,6 +532,38 @@ function filterNewHires() {
     if (show) visible++;
   });
   document.getElementById('hire-count').textContent = visible + ' hire(s)';
+}
+function sortTable(th) {
+  var table   = th.closest('table');
+  var tbody   = table.querySelector('tbody');
+  var colIdx  = th.cellIndex;
+  var isNum   = th.dataset.type === 'num';
+  var current = th.dataset.sort || 'none';
+  var next    = current === 'none' ? 'asc' : current === 'asc' ? 'desc' : 'none';
+  table.querySelectorAll('th.sortable').forEach(function(h) {
+    delete h.dataset.sort;
+    h.querySelector('.sort-icon').textContent = '\u21C5';
+  });
+  if (next === 'none') return;
+  th.dataset.sort = next;
+  th.querySelector('.sort-icon').textContent = next === 'asc' ? '\u2191' : '\u2193';
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort(function(a, b) {
+    var aVal = a.cells[colIdx] ? a.cells[colIdx].textContent.trim() : '';
+    var bVal = b.cells[colIdx] ? b.cells[colIdx].textContent.trim() : '';
+    var cmp;
+    if (isNum) {
+      var aNum = parseFloat(aVal.replace(/[^0-9.\-]/g, ''));
+      var bNum = parseFloat(bVal.replace(/[^0-9.\-]/g, ''));
+      cmp = (isNaN(aNum) ? -Infinity : aNum) - (isNaN(bNum) ? -Infinity : bNum);
+    } else {
+      cmp = aVal.toLowerCase().localeCompare(bVal.toLowerCase());
+    }
+    return next === 'asc' ? cmp : -cmp;
+  });
+  var frag = document.createDocumentFragment();
+  rows.forEach(function(r) { frag.appendChild(r); });
+  tbody.appendChild(frag);
 }
 </script>
 </body>

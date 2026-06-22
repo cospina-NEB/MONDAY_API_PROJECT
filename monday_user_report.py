@@ -184,8 +184,17 @@ for ws in workspaces:
             query = f"""
 query {{
   users(limit: {page_size}, page: {page}, kind: all) {{
-    id name email kind enabled created_at last_activity invitation_method
-    teams {{ name }}
+    id
+    name
+    email
+    kind
+    enabled
+    invitation_method
+    created_at
+    last_activity
+    teams {{
+      name
+    }}
   }}
 }}"""
             result  = run_gql(query)
@@ -196,8 +205,17 @@ query {{
 query {{
   workspaces(ids: [{ws_id}]) {{
     members: users_subscribers(limit: {page_size}, page: {page}) {{
-      id name email kind enabled created_at last_activity invitation_method
-      teams {{ name }}
+      id
+      name
+      email
+      kind
+      enabled
+      invitation_method
+      created_at
+      last_activity
+      teams {{
+        name
+      }}
     }}
   }}
 }}"""
@@ -369,18 +387,32 @@ def html_section(title: str, head: str, body_rows: list, empty_msg: str) -> str:
 
 ws_section = html_section(
     "Workspace Breakdown",
-    "<th>Workspace</th><th>Total</th><th>Admins</th><th>Members</th>"
-    "<th>Viewers</th><th>Guests</th><th>Active</th><th>Inactive</th>",
+    "<th class='sortable' onclick='sortTable(this)'>Workspace<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)' data-type='num'>Total<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)' data-type='num'>Admins<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)' data-type='num'>Members<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)' data-type='num'>Viewers<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)' data-type='num'>Guests<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)' data-type='num'>Active<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)' data-type='num'>Inactive<span class='sort-icon'>&#8645;</span></th>",
     ws_rows_html, "No workspace data.",
 )
 inactive_section = html_section(
     "Inactive Users (30+ days without login)",
-    "<th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Last Active</th>",
+    "<th class='sortable' onclick='sortTable(this)'>Name<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)'>Email<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)'>Workspace<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)'>Role<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)'>Last Active<span class='sort-icon'>&#8645;</span></th>",
     inactive_rows_html, "No inactive users found.",
 )
 guest_section = html_section(
     "Guest / External Users",
-    "<th>Name</th><th>Email</th><th>Workspace</th><th>Status</th><th>Joined</th>",
+    "<th class='sortable' onclick='sortTable(this)'>Name<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)'>Email<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)'>Workspace<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)'>Status<span class='sort-icon'>&#8645;</span></th>"
+    "<th class='sortable' onclick='sortTable(this)'>Joined<span class='sort-icon'>&#8645;</span></th>",
     guest_rows_html, "No guest users found.",
 )
 
@@ -405,7 +437,7 @@ if new_hire_rows_html:
   <span class="filter-count" id="hire-count">{len(new_hires)} hire(s)</span>
 </div>
 <table id="new-hire-table">
-  <thead><tr><th>Name</th><th>Email</th><th>Workspace</th><th>Role</th><th>Status</th><th>Joined</th><th>Invitation Method</th></tr></thead>
+  <thead><tr><th class="sortable" onclick="sortTable(this)">Name<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Email<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Workspace<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Role<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Status<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Joined<span class="sort-icon">&#8645;</span></th><th class="sortable" onclick="sortTable(this)">Invitation Method<span class="sort-icon">&#8645;</span></th></tr></thead>
   <tbody>{"".join(new_hire_rows_html)}</tbody>
 </table>"""
 else:
@@ -446,6 +478,12 @@ html = f"""<!DOCTYPE html>
   .filter-bar label {{ font-size: 12px; font-weight: 700; color: #5e6c84; text-transform: uppercase; letter-spacing: .05em; }}
   .filter-bar select {{ font-size: 13px; padding: 5px 10px; border: 1px solid #dfe1e6; border-radius: 4px; color: #172b4d; cursor: pointer; }}
   .filter-count {{ font-size: 12px; color: #5e6c84; }}
+  th.sortable {{ cursor: pointer; user-select: none; white-space: nowrap; }}
+  th.sortable:hover {{ background: #e8eaed; color: #172b4d; }}
+  th.sortable[data-sort="asc"],th.sortable[data-sort="desc"] {{ color: #0052cc; }}
+  .sort-icon {{ display: inline-block; margin-left: 5px; font-size: 10px; color: #b3bac5; vertical-align: middle; transition: color .15s; }}
+  th.sortable:hover .sort-icon {{ color: #5e6c84; }}
+  th.sortable[data-sort="asc"] .sort-icon,th.sortable[data-sort="desc"] .sort-icon {{ color: #0052cc; }}
 </style>
 </head>
 <body>
@@ -474,6 +512,38 @@ function filterNewHires() {{
     if (show) visible++;
   }});
   document.getElementById('hire-count').textContent = visible + ' hire(s)';
+}}
+function sortTable(th) {{
+  var table   = th.closest('table');
+  var tbody   = table.querySelector('tbody');
+  var colIdx  = th.cellIndex;
+  var isNum   = th.dataset.type === 'num';
+  var current = th.dataset.sort || 'none';
+  var next    = current === 'none' ? 'asc' : current === 'asc' ? 'desc' : 'none';
+  table.querySelectorAll('th.sortable').forEach(function(h) {{
+    delete h.dataset.sort;
+    h.querySelector('.sort-icon').textContent = '\\u21C5';
+  }});
+  if (next === 'none') return;
+  th.dataset.sort = next;
+  th.querySelector('.sort-icon').textContent = next === 'asc' ? '\\u2191' : '\\u2193';
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  rows.sort(function(a, b) {{
+    var aVal = a.cells[colIdx] ? a.cells[colIdx].textContent.trim() : '';
+    var bVal = b.cells[colIdx] ? b.cells[colIdx].textContent.trim() : '';
+    var cmp;
+    if (isNum) {{
+      var aNum = parseFloat(aVal.replace(/[^0-9.\\-]/g, ''));
+      var bNum = parseFloat(bVal.replace(/[^0-9.\\-]/g, ''));
+      cmp = (isNaN(aNum) ? -Infinity : aNum) - (isNaN(bNum) ? -Infinity : bNum);
+    }} else {{
+      cmp = aVal.toLowerCase().localeCompare(bVal.toLowerCase());
+    }}
+    return next === 'asc' ? cmp : -cmp;
+  }});
+  var frag = document.createDocumentFragment();
+  rows.forEach(function(r) {{ frag.appendChild(r); }});
+  tbody.appendChild(frag);
 }}
 </script>
 </body>
