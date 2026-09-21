@@ -1,0 +1,24 @@
+$kind: collection
+name: ShareFile API
+variables:
+  - key: sharefile_subdomain
+    value: coralconnect
+    secret: false
+  - key: sharefile_client_id
+    value: ""
+    secret: true
+  - key: sharefile_client_secret
+    value: ""
+    secret: true
+  - key: sharefile_refresh_token
+    value: ""
+    secret: true
+  - key: sharefile_access_token
+    value: ""
+    secret: true
+  - key: sharefile_api_base
+    value: https://coralconnect.sf-api.com/sf/v3
+    secret: false
+  - key: user_id
+    value: ""
+    secret: false

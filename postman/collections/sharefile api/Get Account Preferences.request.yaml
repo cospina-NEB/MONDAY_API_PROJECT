@@ -1,0 +1,12 @@
+$kind: http-request
+name: Get Account Preferences
+method: GET
+url: "{{sharefile_api_base}}/Accounts/Preferences"
+auth:
+  type: noauth
+order: 4000
+headers:
+  Authorization: "Bearer {{sharefile_access_token}}"
+# AES-316: checked for SCIM/Provision/Sync/Directory-named flags here on
+# 2026-09-21 - only found EnableSync/EnableSyncAutoUpdate, which are for
+# the desktop sync client, not identity provisioning.

@@ -1,0 +1,9 @@
+$kind: http-request
+name: Get Accounts Clients
+method: GET
+url: "{{sharefile_api_base}}/Accounts/Clients?$top=100"
+auth:
+  type: noauth
+order: 3100
+headers:
+  Authorization: "Bearer {{sharefile_access_token}}"

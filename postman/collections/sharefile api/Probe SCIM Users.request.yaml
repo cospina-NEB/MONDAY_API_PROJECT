@@ -1,0 +1,19 @@
+$kind: http-request
+name: Probe SCIM Users
+description: >-
+  AES-316 investigation: tried this against both the sharefile.com and
+  sf-api.com hosts. sharefile.com/scim/v2/Users returned a 200 but with
+  the web app's HTML shell, not real SCIM JSON (i.e. it fell through to
+  the SPA catch-all route, not an actual API). sf-api.com/scim/v2/Users
+  returned a plain 404. Neither looks like a real, reachable SCIM
+  endpoint for this account/API app as of 2026-09-21. Edit the url
+  below to try other bases/paths if you find documentation pointing
+  elsewhere, or if this account gets ShareFile's provisioning/SCIM
+  feature turned on later.
+method: GET
+url: "https://{{sharefile_subdomain}}.sharefile.com/scim/v2/Users"
+auth:
+  type: noauth
+order: 5100
+headers:
+  Authorization: "Bearer {{sharefile_access_token}}"

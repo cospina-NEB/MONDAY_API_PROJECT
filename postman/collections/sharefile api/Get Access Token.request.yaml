@@ -1,0 +1,20 @@
+$kind: http-request
+name: Get Access Token
+method: POST
+url: "https://{{sharefile_subdomain}}.sharefile.com/oauth/token"
+auth:
+  type: noauth
+order: 1000
+headers:
+  Content-Type: application/x-www-form-urlencoded
+body:
+  type: urlencoded
+  content:
+    - key: grant_type
+      value: refresh_token
+    - key: client_id
+      value: "{{sharefile_client_id}}"
+    - key: client_secret
+      value: "{{sharefile_client_secret}}"
+    - key: refresh_token
+      value: "{{sharefile_refresh_token}}"

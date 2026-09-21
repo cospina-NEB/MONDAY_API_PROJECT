@@ -1,0 +1,9 @@
+$kind: http-request
+name: Get Accounts Employees
+method: GET
+url: "{{sharefile_api_base}}/Accounts/Employees?$top=100"
+auth:
+  type: noauth
+order: 3000
+headers:
+  Authorization: "Bearer {{sharefile_access_token}}"

@@ -1,0 +1,16 @@
+$kind: http-request
+name: Get User By Id (full fields)
+method: GET
+url: "{{sharefile_api_base}}/Users({{user_id}})"
+auth:
+  type: noauth
+order: 2000
+headers:
+  Authorization: "Bearer {{sharefile_access_token}}"
+# No $select - returns every property the User entity exposes for this
+# account. Use this to look for any provisioning-source field (SCIM,
+# SSO, IdP, externalId, etc.) that isn't already accounted for in
+# scripts/sharefile_user_report.ps1's Get-Field candidate lists.
+# AES-316: none of the obvious field-name guesses (ExternalId, Provider,
+# SSOId, ManagedBy, Source, ...) exist on this account as of 2026-09 -
+# re-check here if ShareFile adds fields later.

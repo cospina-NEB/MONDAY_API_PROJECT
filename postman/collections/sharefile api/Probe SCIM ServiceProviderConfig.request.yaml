@@ -1,0 +1,17 @@
+$kind: http-request
+name: Probe SCIM ServiceProviderConfig
+description: >-
+  AES-316 investigation: SCIM implementations conventionally expose an
+  unauthenticated discovery endpoint at /scim/v2/ServiceProviderConfig.
+  If ShareFile has real SCIM support enabled for this account, this
+  should return a JSON document describing supported SCIM features. As
+  of 2026-09-21 this returned the ShareFile web app's HTML shell (a
+  200, but not real SCIM JSON) - try again here if provisioning setup
+  changes, or try swapping the host below for other guesses.
+method: GET
+url: "https://{{sharefile_subdomain}}.sharefile.com/scim/v2/ServiceProviderConfig"
+auth:
+  type: noauth
+order: 5000
+headers:
+  Authorization: "Bearer {{sharefile_access_token}}"
