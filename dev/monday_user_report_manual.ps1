@@ -5,7 +5,7 @@
 #
 # Usage:
 #   Set-Content .env "MONDAY_API_TOKEN=your_token_here"
-#   .\monday_user_report.ps1
+#   .\dev\monday_user_report_manual.ps1
 #
 # Output: coral_user_report_YYYY-MM-DD.csv
 # ============================================================
@@ -15,7 +15,8 @@ $ErrorActionPreference = "Stop"
 
 # ── Load .env ─────────────────────────────────────────────────
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$EnvFile   = Join-Path $ScriptDir ".env"
+$ProjectRoot = Split-Path -Parent $ScriptDir
+$EnvFile   = Join-Path $ProjectRoot ".env"
 
 if (Test-Path $EnvFile) {
     Get-Content $EnvFile | ForEach-Object {

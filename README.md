@@ -45,12 +45,12 @@ All tables have sortable column headers — click a header to sort ascending (�
 
 ```
 monday_api_project/
-├── monday_user_report.ps1              # Primary script (PowerShell)
-├── monday_user_report.py               # Python port (identical logic)
-├── upload_to_sharepoint.ps1            # Uploads reports to SharePoint
+├── scripts/
+│   ├── monday_user_report.ps1          # Primary script (PowerShell)
+│   ├── monday_user_report.py           # Python port (identical logic)
+│   └── upload_to_sharepoint.ps1        # Uploads reports to SharePoint
 ├── RunScript.bat                       # Double-click launcher (bypasses execution policy)
 ├── query.graphql                       # Reference GraphQL queries
-├── probe_schema.ps1                    # Utility: introspects the Monday.com API schema
 ├── .env                                # API tokens — not committed to source control
 ├── .github/
 │   └── workflows/
@@ -58,6 +58,11 @@ monday_api_project/
 ├── tests/
 │   ├── monday_user_report.Tests.ps1    # Pester v5 test suite (PowerShell)
 │   └── test_monday_user_report.py      # pytest test suite (Python)
+├── dev/                                 # One-off exploration scripts + superseded versions (not part of the test suite)
+│   ├── probe_schema.ps1                # Introspects the Monday.com API schema
+│   ├── test_invited_by.ps1             # Checks what invited_by returns
+│   ├── test_user_fields.ps1            # Lists all fields on the User type
+│   └── monday_user_report_manual.ps1   # Earlier version, superseded by monday_user_report.ps1
 └── Reports/                            # Output files (gitignored)
 ```
 
@@ -158,7 +163,7 @@ To get your token: Monday.com → avatar (bottom-left) → **Developers → My A
 ### PowerShell (primary)
 
 ```powershell
-.\monday_user_report.ps1
+.\scripts\monday_user_report.ps1
 ```
 
 Or double-click `RunScript.bat` — bypasses execution policy automatically.
@@ -171,7 +176,7 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ### Python (alternative)
 
 ```bash
-python monday_user_report.py
+python scripts/monday_user_report.py
 ```
 
 Both implementations produce identical output.
@@ -205,8 +210,8 @@ Done! Report saved to: Reports\coral_user_report_2026-06-01.csv
 The workflow at `.github/workflows/monthly_report.yml` runs automatically on the **1st of each month at 8:00 AM UTC**. It:
 1. Checks out the repo
 2. Writes `.env` from GitHub Secrets
-3. Runs `monday_user_report.ps1`
-4. Uploads CSV and HTML to SharePoint via `upload_to_sharepoint.ps1`
+3. Runs `scripts/monday_user_report.ps1`
+4. Uploads CSV and HTML to SharePoint via `scripts/upload_to_sharepoint.ps1`
 5. Archives all report files as workflow artifacts (retained 90 days)
 
 Can also be triggered manually from the GitHub Actions UI via **workflow_dispatch**.
@@ -225,8 +230,8 @@ Can also be triggered manually from the GitHub Actions UI via **workflow_dispatc
 ### SharePoint Upload (manual)
 
 ```powershell
-.\monday_user_report.ps1
-.\upload_to_sharepoint.ps1
+.\scripts\monday_user_report.ps1
+.\scripts\upload_to_sharepoint.ps1
 ```
 
 **Azure AD app requirements (one-time setup):**

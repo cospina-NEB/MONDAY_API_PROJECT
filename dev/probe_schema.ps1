@@ -5,7 +5,8 @@
 # ============================================================
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$EnvFile   = Join-Path $ScriptDir ".env"
+$ProjectRoot = Split-Path -Parent $ScriptDir
+$EnvFile   = Join-Path $ProjectRoot ".env"
 
 if (Test-Path $EnvFile) {
     Get-Content $EnvFile | ForEach-Object {

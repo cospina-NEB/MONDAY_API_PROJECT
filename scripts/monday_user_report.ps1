@@ -5,7 +5,7 @@
 #
 # Usage:
 #   Set-Content .env "MONDAY_API_TOKEN=your_token_here"
-#   .\monday_user_report.ps1
+#   .\scripts\monday_user_report.ps1
 #
 # Output: coral_user_report_YYYY-MM-DD.csv
 # ============================================================
@@ -14,8 +14,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # ── Load .env ─────────────────────────────────────────────────
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$EnvFile   = Join-Path $ScriptDir ".env"
+$ScriptDir   = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Split-Path -Parent $ScriptDir
+$EnvFile     = Join-Path $ProjectRoot ".env"
 
 if (Test-Path $EnvFile) {
     Get-Content $EnvFile | ForEach-Object {
@@ -31,7 +32,7 @@ $Token      = $env:MONDAY_API_TOKEN
 if (-not $Token) { throw "Set MONDAY_API_TOKEN env var first" }
 
 $Date       = Get-Date -Format "yyyy-MM-dd"
-$ReportsDir = Join-Path $ScriptDir "Reports"
+$ReportsDir = Join-Path $ProjectRoot "Reports"
 if (-not (Test-Path $ReportsDir)) { New-Item -ItemType Directory -Path $ReportsDir | Out-Null }
 $OutputFile = Join-Path $ReportsDir "coral_user_report_$Date.csv"
 

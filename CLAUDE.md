@@ -12,7 +12,7 @@ Automates generation of the "Coral User Report" — a CSV mapping of Monday.com 
 ## Running the Script
 
 ```powershell
-.\monday_user_report.ps1
+.\scripts\monday_user_report.ps1
 ```
 
 Or double-click `RunScript.bat` (bypasses execution policy automatically).
@@ -46,7 +46,7 @@ pytest tests/test_monday_user_report.py -v
 
 ## Architecture
 
-The project is a single PowerShell script (`monday_user_report.ps1`) with no build step or external runtime dependencies.
+The project is a single PowerShell script (`scripts/monday_user_report.ps1`) with no build step or external runtime dependencies.
 
 **Data flow:**
 1. Parse `.env` → extract `MONDAY_API_TOKEN`
@@ -58,7 +58,7 @@ The project is a single PowerShell script (`monday_user_report.ps1`) with no bui
 5. Normalize each member into a CSV row and append to output file
 6. Strip any "Deleted member" rows from the final file
 
-**Key functions in `monday_user_report.ps1`:**
+**Key functions in `scripts/monday_user_report.ps1`:**
 - `Invoke-GQL` — HTTP layer; sends POST to `https://api.monday.com/v2` with auth headers and pinned API version `2026-07`
 - `ConvertTo-CsvField` — RFC 4180 CSV escaping (wraps in quotes, doubles embedded quotes)
 - `Build-CsvRow` — main data pipeline; calls role/status/teams getters and assembles the 11-column row
@@ -74,12 +74,12 @@ The project is a single PowerShell script (`monday_user_report.ps1`) with no bui
 
 ## Automation & SharePoint Upload
 
-The report runs automatically on the **1st of each month at 8:00 AM UTC** via GitHub Actions (`.github/workflows/monthly_report.yml`). After generating the CSV and HTML, it uploads both files to SharePoint using `upload_to_sharepoint.ps1`.
+The report runs automatically on the **1st of each month at 8:00 AM UTC** via GitHub Actions (`.github/workflows/monthly_report.yml`). After generating the CSV and HTML, it uploads both files to SharePoint using `scripts/upload_to_sharepoint.ps1`.
 
 **To upload manually (local run):**
 ```powershell
-.\monday_user_report.ps1
-.\upload_to_sharepoint.ps1
+.\scripts\monday_user_report.ps1
+.\scripts\upload_to_sharepoint.ps1
 ```
 
 **Required `.env` variables for SharePoint:**

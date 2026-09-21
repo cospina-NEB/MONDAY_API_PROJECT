@@ -1,8 +1,9 @@
-# test_invited_by.ps1
-# Runs a quick API check to see what invited_by actually returns.
+# test_user_fields.ps1
+# Introspects the Monday.com API to list all fields available on the User type.
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$EnvFile   = Join-Path $ScriptDir ".env"
+$ProjectRoot = Split-Path -Parent $ScriptDir
+$EnvFile   = Join-Path $ProjectRoot ".env"
 if (Test-Path $EnvFile) {
     Get-Content $EnvFile | ForEach-Object {
         if ($_ -match '^\s*([^#][^=]+)=(.*)$') {
@@ -16,14 +17,9 @@ if (-not $Token) { throw "Set MONDAY_API_TOKEN in .env first" }
 
 $Query = @"
 query {
-  users(limit: 20, kind: all) {
-    id
-    name
-    email
-    invited_by {
-      id
+  __type(name: "User") {
+    fields {
       name
-      email
     }
   }
 }
@@ -35,9 +31,9 @@ $Response = Invoke-RestMethod `
     -Uri     "https://api.monday.com/v2" `
     -Method  Post `
     -Headers @{
-        "Content-Type" = "application/json"
+        "Content-Type"  = "application/json"
         "Authorization" = $Token
-        "API-Version"  = "2024-07"
+        "API-Version"   = "2024-07"
     } `
     -Body $Body
 
@@ -48,10 +44,9 @@ if ($Response.PSObject.Properties['errors']) {
 }
 
 Write-Host ""
-Write-Host "invited_by results for first 20 users:" -ForegroundColor Cyan
+Write-Host "Fields available on the User type:" -ForegroundColor Cyan
 Write-Host ("-" * 60)
 
-foreach ($u in $Response.data.users) {
-    $inviter = if ($u.invited_by) { "$($u.invited_by.name) <$($u.invited_by.email)>" } else { "(null)" }
-    Write-Host "$($u.name.PadRight(30)) invited_by: $inviter"
+$Response.data.__type.fields | Sort-Object name | ForEach-Object {
+    Write-Host $_.name
 }

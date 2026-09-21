@@ -25,11 +25,11 @@ jobs:
 
       - name: Generate Coral User Report
         shell: pwsh
-        run: .\monday_user_report.ps1
+        run: .\scripts\monday_user_report.ps1
 
       - name: Upload reports to SharePoint
         shell: pwsh
-        run: .\upload_to_sharepoint.ps1
+        run: .\scripts\upload_to_sharepoint.ps1
 
       - name: Archive reports as workflow artifacts
         uses: actions/upload-artifact@v4

@@ -6,8 +6,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # Load .env if running locally
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$EnvFile   = Join-Path $ScriptDir ".env"
+$ScriptDir   = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Split-Path -Parent $ScriptDir
+$EnvFile     = Join-Path $ProjectRoot ".env"
 if (Test-Path $EnvFile) {
     Get-Content $EnvFile | ForEach-Object {
         if ($_ -match '^\s*([^#][^=]+)=(.*)$') {
@@ -57,7 +58,7 @@ Write-Host "  Site ID: $SiteId"
 
 # 3. Upload today's CSV, HTML, and Excel from the Reports subfolder
 $Date       = Get-Date -Format "yyyy-MM-dd"
-$ReportsDir = Join-Path $ScriptDir "Reports"
+$ReportsDir = Join-Path $ProjectRoot "Reports"
 $Files      = @("coral_user_report_$Date.csv", "coral_user_report_$Date.html", "coral_user_report_$Date.xlsx")
 $Uploaded   = 0
 

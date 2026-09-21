@@ -3,16 +3,20 @@ Tests for monday_user_report.py
 
 Run with:
     pip install pytest requests python-dotenv
-    pytest test_monday_user_report.py -v
+    pytest tests/test_monday_user_report.py -v
 """
 
 import csv
 import io
 import os
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+# monday_user_report.py lives in scripts/, not on sys.path by default
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
 # Make the report module importable without a token in the environment
 os.environ.setdefault("MONDAY_API_TOKEN", "test-token")

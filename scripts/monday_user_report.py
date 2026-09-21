@@ -8,9 +8,9 @@ workspaces to their members with role, status, team, and activity data.
 
 Usage:
     pip install requests python-dotenv openpyxl truststore
-    python monday_user_report.py
+    python scripts/monday_user_report.py
 
-Requires a .env file in the same directory:
+Requires a .env file in the project root:
     MONDAY_API_TOKEN=<your_token>
 """
 
@@ -33,8 +33,9 @@ except ImportError:
     pass  # fall back to default certifi bundle
 
 # ── Config ─────────────────────────────────────────────────────
-SCRIPT_DIR = Path(__file__).parent
-load_dotenv(SCRIPT_DIR / ".env")
+SCRIPT_DIR   = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+load_dotenv(PROJECT_ROOT / ".env")
 
 API_URL  = "https://api.monday.com/v2"
 API_VER  = "2026-07"
@@ -45,7 +46,7 @@ if not TOKEN:
     sys.exit(1)
 
 DATE        = datetime.now().strftime("%Y-%m-%d")
-REPORTS_DIR = SCRIPT_DIR / "Reports"
+REPORTS_DIR = PROJECT_ROOT / "Reports"
 REPORTS_DIR.mkdir(exist_ok=True)
 OUTPUT_CSV  = REPORTS_DIR / f"coral_user_report_{DATE}.csv"
 OUTPUT_HTML = REPORTS_DIR / f"coral_user_report_{DATE}.html"
