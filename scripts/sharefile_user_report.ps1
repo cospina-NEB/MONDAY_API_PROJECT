@@ -155,6 +155,27 @@ function ConvertTo-CsvField {
     return "`"$escaped`""
 }
 
+# ── Helper: UTC -> account-local time ─────────────────────────
+# ShareFile's API returns timestamps in UTC (PowerShell parses them
+# as DateTime with Kind=Utc), but the account's own UI/exports show
+# local time. There's no timezone field exposed via the API to read
+# this from account preferences; confirmed empirically against a
+# real UserList.xlsx export that this account is on US Eastern time
+# (offsets matched EDT/EST exactly, DST-correct, across 34 users).
+$script:EasternTz = [System.TimeZoneInfo]::FindSystemTimeZoneById("Eastern Standard Time")
+# ShareFile represents "never logged in" as a 1900-01-01 sentinel rather
+# than null (observed as 1900-01-01T05:00:00Z - account-local midnight,
+# not UTC midnight) - treat any 1900 date as blank rather than a real one.
+function ConvertTo-EasternString {
+    param($Value)
+    if ($null -eq $Value -or $Value -eq "") { return $Value }
+    if ($Value -isnot [datetime]) { return $Value }
+    if ($Value.Year -eq 1900) { return "" }
+    $utc = if ($Value.Kind -eq [System.DateTimeKind]::Utc) { $Value } else { $Value.ToUniversalTime() }
+    $local = [System.TimeZoneInfo]::ConvertTimeFromUtc($utc, $script:EasternTz)
+    return $local.ToString("MM/dd/yyyy HH:mm:ss")
+}
+
 # ── Step 1: Fetch Employees and Clients ──────────────────────
 # ShareFile splits account users into two feeds; the split itself
 # tells us "UserType" (Employee vs Client) without needing to guess
@@ -194,6 +215,28 @@ foreach ($Segment in @(
 
 Write-Host "Total users fetched: $($AllUsers.Count)"
 
+# ── Step 1b: Fetch each user's secondary email ────────────────
+# Not present on the Contact objects returned by Accounts/Employees
+# / Accounts/Clients, and OData $select can't project it from that
+# feed either (confirmed against a real account) - it only shows up
+# on the full Users(id) object, as the non-primary entry in
+# EmailAddresses. Requires one extra call per user.
+Write-Host "Fetching secondary emails..."
+$SecondaryEmailById = @{}
+foreach ($Entry in $AllUsers) {
+    $Id = $Entry.Data.Id
+    try {
+        $FullUser = Invoke-SFApi -Path "/Users($Id)?`$select=Id,EmailAddresses"
+        $Secondary = @($FullUser.EmailAddresses | Where-Object { -not $_.IsPrimary } | Select-Object -ExpandProperty Email)
+        if ($Secondary.Count -gt 0) {
+            $SecondaryEmailById[$Id] = ($Secondary -join "; ")
+        }
+    } catch {
+        Write-Warning "Could not fetch secondary email for user $Id`: $_"
+    }
+    Start-Sleep -Milliseconds 100
+}
+
 # ── Step 2: Write CSV (same columns as the manual export) ────
 $Header = "Email,FirstName,LastName,Company,UserType,CreationDate,LastLoginDate,UserDisabled,SharedAddressBook,SecondaryEmail"
 Set-Content -Path $OutputFile -Value $Header -Encoding UTF8
@@ -205,15 +248,18 @@ foreach ($Entry in $AllUsers) {
     $FirstName   = Get-Field $U @('FirstName')
     $LastName    = Get-Field $U @('LastName')
     $Company     = Get-Field $U @('Company')
-    $Created     = Get-Field $U @('CreatedDate', 'CreationDate', 'DateCreated', 'Created')
-    $LastLogin   = Get-Field $U @('LastAnyLogin', 'LastLoginDate', 'LastLogin', 'LastAccess')
+    $Created     = ConvertTo-EasternString (Get-Field $U @('CreatedDate', 'CreationDate', 'DateCreated', 'Created'))
+    $LastLogin   = ConvertTo-EasternString (Get-Field $U @('LastAnyLogin', 'LastLoginDate', 'LastLogin', 'LastAccess'))
     $IsDisabled  = Get-Field $U @('IsDisabled', 'Disabled', 'UserDisabled', 'IsInactive')
 
-    # Not present on the Contact objects returned by Accounts/Employees
-    # and Accounts/Clients (confirmed via -DumpRawSample) - ShareFile's
-    # v3 API doesn't expose these for this endpoint.
-    $SharedAB    = "N/A"
-    $SecondEmail = "N/A"
+    # SharedAddressBook has no backing field anywhere in the API (checked
+    # the full Users(id) property list and the Contacts feed) - it was
+    # "Yes" for all 34 users in the manual reference export with zero
+    # variance, so it's treated as a constant rather than a real per-user
+    # value. If ShareFile ever exposes a real field for this, replace
+    # the hardcode below.
+    $SharedAB    = "Yes"
+    $SecondEmail = if ($SecondaryEmailById.ContainsKey($U.Id)) { $SecondaryEmailById[$U.Id] } else { "" }
 
     $DisabledStr = if ($IsDisabled -eq $true -or "$IsDisabled" -ieq "true") { "Yes" } else { "No" }
 
