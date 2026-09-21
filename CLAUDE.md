@@ -106,3 +106,40 @@ The workflow can also be triggered manually from the GitHub Actions UI via `work
 - API version header: `2026-07` (pinned for schema stability; required for `invitation_method` and the `kind` role field)
 - Rate limits: ~5,000 complexity points/minute — the built-in delays handle this
 - Reference queries: `query.graphql`
+
+## ShareFile User Report (AES-315)
+
+`scripts/sharefile_user_report.ps1` is a ShareFile counterpart to the Monday.com script, built for AES-315. It replicates the manually-exported ShareFile "UserList.xlsx" (Admin > Users > Export) via the ShareFile REST API v3, and produces the same three-file bundle (CSV/HTML/XLSX) as the Monday report. It is currently standalone — not wired into GitHub Actions or the SharePoint upload.
+
+**One-time setup — obtaining a refresh token:**
+
+ShareFile's OAuth2 password grant has no way to satisfy an MFA challenge, so any account with MFA enabled (the norm for this org) always fails password grant with `invalid_grant: invalid username or password`, regardless of correct credentials. Instead, this script authenticates via the Authorization Code flow's refresh token, obtained once interactively:
+
+```powershell
+.\scripts\sharefile_get_refresh_token.ps1
+```
+
+This opens a browser to ShareFile's login (MFA happens there), listens locally for the OAuth redirect, exchanges the code for tokens, and writes `SHAREFILE_REFRESH_TOKEN` into `.env`. It requires `SHAREFILE_SUBDOMAIN`, `SHAREFILE_CLIENT_ID`, `SHAREFILE_CLIENT_SECRET`, and `SHAREFILE_REDIRECT_URI` already set in `.env`, and the redirect URI must exactly match what's registered on the API app in ShareFile's Admin → API/App Management.
+
+**Running:**
+```powershell
+.\scripts\sharefile_user_report.ps1
+```
+
+Requires these `.env` variables:
+```
+SHAREFILE_SUBDOMAIN=<your-subdomain>
+SHAREFILE_CLIENT_ID=<api-app-client-id>
+SHAREFILE_CLIENT_SECRET=<api-app-client-secret>
+SHAREFILE_REDIRECT_URI=<redirect-uri-registered-on-the-api-app>
+SHAREFILE_REFRESH_TOKEN=<from sharefile_get_refresh_token.ps1>
+```
+
+**Data flow:**
+1. OAuth2 refresh-token grant against `https://{subdomain}.sharefile.com/oauth/token` → access token + account subdomain/apicp (ShareFile may rotate the refresh token on use; the script persists the new one back to `.env` automatically)
+2. Fetch `Accounts/Employees` and `Accounts/Clients` from `https://{subdomain}.{apicp}/sf/v3` (this split gives us the `UserType` column directly, instead of guessing at a field for it)
+3. Paginate via OData `$top`/`$skip` (page size 100)
+4. Normalize into the same 10 columns as the manual export: Email, FirstName, LastName, Company, UserType, CreationDate, LastLoginDate, UserDisabled, SharedAddressBook, SecondaryEmail
+5. Generate HTML dashboard (new users in last 30 days, company breakdown, inactive users, external/Client users) and XLSX (new-user rows highlighted blue), same conventions as the Monday report
+
+**Field mapping:** ShareFile's public API docs don't publish a full `Contact` field list, so column values are read via a `Get-Field` helper that tries several likely property names per column and leaves the cell blank + logs a warning if none match. Verified against a real account (`-DumpRawSample`) against the `coralconnect` tenant: `Email`, `FirstName`, `LastName`, `Company`, `CreatedDate`, `IsDisabled` map directly; last-login is exposed as `LastAnyLogin`, not `LastLoginDate`. `SharedAddressBook` and `SecondaryEmail` are not present on the `Contact` objects returned by `Accounts/Employees`/`Accounts/Clients` at all — the script hardcodes `"N/A"` for these two columns, matching how the Monday report handles its own unsupported fields (2FA, Products). If a `Company` warning appears, it's typically real data (some contacts have no company on file), not a mapping issue — worth spot-checking the CSV before assuming a bug.

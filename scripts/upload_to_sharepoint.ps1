@@ -58,7 +58,7 @@ Write-Host "  Site ID: $SiteId"
 
 # 3. Upload today's CSV, HTML, and Excel from the Reports subfolder
 $Date       = Get-Date -Format "yyyy-MM-dd"
-$ReportsDir = Join-Path $ProjectRoot "Reports"
+$ReportsDir = Join-Path $ProjectRoot "Reports\monday"
 $Files      = @("coral_user_report_$Date.csv", "coral_user_report_$Date.html", "coral_user_report_$Date.xlsx")
 $Uploaded   = 0
 

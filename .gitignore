@@ -45,3 +45,12 @@ cd_mismatches.xlsx
 coral_user_report_*.csv
 coral_user_report_*.html
 coral_user_report_*.xlsx
+
+# Generated ShareFile user reports + debug samples (contain client data)
+sharefile_user_report_*.csv
+sharefile_user_report_*.html
+sharefile_user_report_*.xlsx
+sharefile_raw_sample_*.json
+
+# Manual export used as a reference for the ShareFile report (contains client data)
+Reports/reference/UserList.xlsx

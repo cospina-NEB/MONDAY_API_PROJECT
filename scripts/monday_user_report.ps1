@@ -32,7 +32,7 @@ $Token      = $env:MONDAY_API_TOKEN
 if (-not $Token) { throw "Set MONDAY_API_TOKEN env var first" }
 
 $Date       = Get-Date -Format "yyyy-MM-dd"
-$ReportsDir = Join-Path $ProjectRoot "Reports"
+$ReportsDir = Join-Path $ProjectRoot "Reports\monday"
 if (-not (Test-Path $ReportsDir)) { New-Item -ItemType Directory -Path $ReportsDir | Out-Null }
 $OutputFile = Join-Path $ReportsDir "coral_user_report_$Date.csv"
 

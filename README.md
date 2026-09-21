@@ -63,7 +63,10 @@ monday_api_project/
 │   ├── test_invited_by.ps1             # Checks what invited_by returns
 │   ├── test_user_fields.ps1            # Lists all fields on the User type
 │   └── monday_user_report_manual.ps1   # Earlier version, superseded by monday_user_report.ps1
-└── Reports/                            # Output files (gitignored)
+└── Reports/
+    ├── monday/                          # Monday.com report output (gitignored)
+    ├── sharefile/                       # ShareFile report output, incl. debug/ raw samples (gitignored)
+    └── reference/                       # Manual export used as a reference for the ShareFile report (gitignored)
 ```
 
 ---
@@ -90,9 +93,9 @@ GraphQL API ──► POST /v2  (API-Version: 2026-07)
 Normalize each member into an 11-column row
            │
            ├─► Strip "Deleted member" rows
-           ├─► Write CSV   → Reports/coral_user_report_YYYY-MM-DD.csv
-           ├─► Generate HTML → Reports/coral_user_report_YYYY-MM-DD.html
-           └─► Generate Excel → Reports/coral_user_report_YYYY-MM-DD.xlsx
+           ├─► Write CSV   → Reports/monday/coral_user_report_YYYY-MM-DD.csv
+           ├─► Generate HTML → Reports/monday/coral_user_report_YYYY-MM-DD.html
+           └─► Generate Excel → Reports/monday/coral_user_report_YYYY-MM-DD.xlsx
 ```
 
 ### Why Two Different User Queries
@@ -194,11 +197,11 @@ Fetching audit logs...
     Page 1: 12 member(s) returned
     Total members in 'IT Projects': 12
 Removing deleted-member records...
-Done! Report saved to: Reports\coral_user_report_2026-06-01.csv
+Done! Report saved to: Reports\monday\coral_user_report_2026-06-01.csv
    Rows written: 266
    Deleted-member rows removed: 0
-   HTML report saved to: Reports\coral_user_report_2026-06-01.html
-   Excel report saved to: Reports\coral_user_report_2026-06-01.xlsx
+   HTML report saved to: Reports\monday\coral_user_report_2026-06-01.html
+   Excel report saved to: Reports\monday\coral_user_report_2026-06-01.xlsx
 ```
 
 ---
@@ -300,7 +303,7 @@ The test suites are self-contained and make no network calls — no API token ne
 ## Quick Filters (PowerShell)
 
 ```powershell
-$data = Import-Csv Reports\coral_user_report_*.csv | Select-Object -Last 1
+$data = Import-Csv Reports\monday\coral_user_report_*.csv | Select-Object -Last 1
 
 # Guest / external users (Monday.com only — not in Entra ID)
 $data | Where-Object { $_.'User Role' -eq 'Guest' }
