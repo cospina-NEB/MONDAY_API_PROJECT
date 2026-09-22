@@ -215,30 +215,61 @@ foreach ($Segment in @(
 
 Write-Host "Total users fetched: $($AllUsers.Count)"
 
-# ── Step 1b: Fetch each user's secondary email ────────────────
-# Not present on the Contact objects returned by Accounts/Employees
-# / Accounts/Clients, and OData $select can't project it from that
-# feed either (confirmed against a real account) - it only shows up
-# on the full Users(id) object, as the non-primary entry in
-# EmailAddresses. Requires one extra call per user.
-Write-Host "Fetching secondary emails..."
+# ── Step 1b: Fetch each user's secondary email + referrer (AES-316) ──
+# Neither is present on the Contact objects returned by
+# Accounts/Employees / Accounts/Clients, and OData $select can't
+# project them from that feed either (confirmed against a real
+# account) - both only show up on the full Users(id) object.
+# EmailAddresses is the non-primary email; ReferredBy is the Id of
+# whoever added this user (see AES-316 note below). One extra call
+# per user.
+Write-Host "Fetching secondary emails and referrers..."
 $SecondaryEmailById = @{}
+$ReferredByIdByUser = @{}
 foreach ($Entry in $AllUsers) {
     $Id = $Entry.Data.Id
     try {
-        $FullUser = Invoke-SFApi -Path "/Users($Id)?`$select=Id,EmailAddresses"
+        $FullUser = Invoke-SFApi -Path "/Users($Id)?`$select=Id,EmailAddresses,ReferredBy"
         $Secondary = @($FullUser.EmailAddresses | Where-Object { -not $_.IsPrimary } | Select-Object -ExpandProperty Email)
         if ($Secondary.Count -gt 0) {
             $SecondaryEmailById[$Id] = ($Secondary -join "; ")
         }
+        # The account owner's ReferredBy comes back as the literal
+        # string "none" rather than null/absent - normalize both.
+        if ($FullUser.ReferredBy -and $FullUser.ReferredBy -ne "none") {
+            $ReferredByIdByUser[$Id] = $FullUser.ReferredBy
+        }
     } catch {
-        Write-Warning "Could not fetch secondary email for user $Id`: $_"
+        Write-Warning "Could not fetch secondary email / referrer for user $Id`: $_"
     }
     Start-Sleep -Milliseconds 100
 }
 
-# ── Step 2: Write CSV (same columns as the manual export) ────
-$Header = "Email,FirstName,LastName,Company,UserType,CreationDate,LastLoginDate,UserDisabled,SharedAddressBook,SecondaryEmail"
+# ── Step 1c: Resolve each distinct referrer Id to a name (AES-316) ──
+# AES-316: ShareFile's API has no explicit "added via SCIM" flag (see
+# CLAUDE.md), but ReferredBy - who added this user - is a good proxy
+# for "was this added manually by another person": clients are
+# consistently referred by a specific named employee (a real invite),
+# while employees are consistently referred by the account's
+# automation/service account (sa_nebulas@coralconnect.com as of
+# 2026-09-22) rather than a named person. Surfacing the resolved name
+# lets the report reader make that call themselves rather than this
+# script guessing at a hardcoded "is this a service account" rule.
+Write-Host "Resolving referrer names..."
+$ReferrerNameById = @{}
+foreach ($ReferrerId in ($ReferredByIdByUser.Values | Select-Object -Unique)) {
+    try {
+        $Referrer = Invoke-SFApi -Path "/Users($ReferrerId)?`$select=Id,Email,FullName"
+        $ReferrerNameById[$ReferrerId] = if ($Referrer.FullName) { "$($Referrer.FullName) ($($Referrer.Email))" } else { $Referrer.Email }
+    } catch {
+        Write-Warning "Could not resolve referrer $ReferrerId`: $_"
+    }
+    Start-Sleep -Milliseconds 100
+}
+
+# ── Step 2: Write CSV (same columns as the manual export, plus AddedBy) ──
+# AddedBy is not part of the manual export - added for AES-316.
+$Header = "Email,FirstName,LastName,Company,UserType,CreationDate,LastLoginDate,UserDisabled,SharedAddressBook,SecondaryEmail,AddedBy"
 Set-Content -Path $OutputFile -Value $Header -Encoding UTF8
 
 foreach ($Entry in $AllUsers) {
@@ -261,6 +292,15 @@ foreach ($Entry in $AllUsers) {
     $SharedAB    = "Yes"
     $SecondEmail = if ($SecondaryEmailById.ContainsKey($U.Id)) { $SecondaryEmailById[$U.Id] } else { "" }
 
+    # AES-316: who added this user, resolved from ReferredBy (see Step
+    # 1c). Blank means ShareFile returned no referrer at all (the
+    # account owner, in the one case observed).
+    $AddedBy = if ($ReferredByIdByUser.ContainsKey($U.Id) -and $ReferrerNameById.ContainsKey($ReferredByIdByUser[$U.Id])) {
+        $ReferrerNameById[$ReferredByIdByUser[$U.Id]]
+    } else {
+        ""
+    }
+
     $DisabledStr = if ($IsDisabled -eq $true -or "$IsDisabled" -ieq "true") { "Yes" } else { "No" }
 
     $Row = @(
@@ -273,7 +313,8 @@ foreach ($Entry in $AllUsers) {
         $LastLogin,
         $DisabledStr,
         $SharedAB,
-        $SecondEmail
+        $SecondEmail,
+        $AddedBy
     ) | ForEach-Object { ConvertTo-CsvField "$_" }
 
     Add-Content -Path $OutputFile -Value ($Row -join ",") -Encoding UTF8
