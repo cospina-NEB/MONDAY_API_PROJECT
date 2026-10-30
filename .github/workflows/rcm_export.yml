@@ -1,0 +1,53 @@
+name: CORAL RCM Export
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours (00/06/12/18 UTC)
+  workflow_dispatch:          # allow manual trigger from the GitHub Actions UI
+
+# Never run two exports at once — they share the activity-log watermark.
+concurrency:
+  group: rcm-export
+  cancel-in-progress: false
+
+jobs:
+  export-and-upload:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # TODO: switch to a MONDAY_RCM_API_TOKEN secret once Coral provisions the
+      # non-human data_loader account.
+      - name: Write .env from secrets
+        shell: pwsh
+        run: |
+          "MONDAY_API_TOKEN=${{ secrets.MONDAY_API_TOKEN }}"                 | Out-File .env -Encoding utf8
+          "MONDAY_RCM_WORKSPACE_ID=${{ secrets.MONDAY_RCM_WORKSPACE_ID }}"   | Add-Content .env -Encoding utf8
+          "SHAREPOINT_TENANT_ID=${{ secrets.SHAREPOINT_TENANT_ID }}"         | Add-Content .env -Encoding utf8
+          "SHAREPOINT_CLIENT_ID=${{ secrets.SHAREPOINT_CLIENT_ID }}"         | Add-Content .env -Encoding utf8
+          "SHAREPOINT_CLIENT_SECRET=${{ secrets.SHAREPOINT_CLIENT_SECRET }}" | Add-Content .env -Encoding utf8
+          "SHAREPOINT_SITE_URL=${{ secrets.SHAREPOINT_SITE_URL }}"           | Add-Content .env -Encoding utf8
+          "SHAREPOINT_FOLDER=${{ secrets.SHAREPOINT_FOLDER }}"               | Add-Content .env -Encoding utf8
+
+      - name: Restore activity-log watermark from SharePoint
+        shell: pwsh
+        run: .\scripts\upload_to_sharepoint.ps1 -ReportsDir Reports\monday_rcm -SubFolder rcm -Download rcm_state.json
+
+      - name: Run RCM export
+        shell: pwsh
+        run: .\scripts\monday_rcm_export.ps1
+
+      - name: Upload export + watermark to SharePoint
+        shell: pwsh
+        run: |
+          $Files = @(Get-ChildItem Reports\monday_rcm -Filter 'rcm_*.csv' | ForEach-Object Name) + 'rcm_state.json'
+          .\scripts\upload_to_sharepoint.ps1 -ReportsDir Reports\monday_rcm -SubFolder rcm -Files $Files
+
+      - name: Archive export as workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rcm-export-${{ github.run_id }}
+          path: Reports/monday_rcm/
+          retention-days: 30

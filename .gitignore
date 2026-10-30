@@ -54,3 +54,5 @@ sharefile_raw_sample_*.json
 
 # Manual export used as a reference for the ShareFile report (contains client data)
 Reports/reference/UserList.xlsx
+# Generated CORAL -- RCM export (contains client data) + its watermark
+Reports/monday_rcm/

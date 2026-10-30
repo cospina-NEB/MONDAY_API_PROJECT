@@ -155,3 +155,40 @@ SHAREFILE_REFRESH_TOKEN=<from sharefile_get_refresh_token.ps1>
 **AddedBy / AES-316 (manual vs. automated provisioning):** ShareFile's `/sf/v3` REST API has no explicit "added via SCIM" field, and no accessible SCIM 2.0 endpoint was found under this API app's OAuth token (`/scim/v2/...` under both the `.sharefile.com` and `.{apicp}` hosts either 404s or falls through to the ShareFile web app's HTML shell). ShareFile *does* have a real `AdminSCIM` permission (seen on `ryan.rollo@coralconnect.com`'s `Roles`, the account's MasterAdmin) gating some SCIM/provisioning feature in the Admin UI — that's the place to check for ground truth on whether SCIM is actually configured, since the API can't confirm it. As a practical proxy, the script surfaces `ReferredBy` (who added the user, resolved to a name/email) as a new `AddedBy` column, not part of the manual export:
 - Only visible on the full `Users({id})` object (see step 5); the account owner's `ReferredBy` comes back as the literal string `"none"` rather than null, which the script normalizes to blank.
 - Empirically (as of 2026-09-22): every current employee except the account owner is referred by `sa_nebulas@coralconnect.com` (a service/admin account), while every client is referred by a specific named human employee. This makes `AddedBy` a reasonable manual-vs-automated signal in practice, but the script deliberately does *not* hardcode a boolean "is this a service account" rule on top of it — that would be guessing at which accounts count as automation, which breaks the moment a new service account or a new human onboarding-admin shows up. Report readers should interpret the resolved name themselves.
+
+## CORAL -- RCM Export
+
+`scripts/monday_rcm_export.ps1` is a trace-level, **read-only** feed of the `CORAL -- RCM` workspace for Coral's data warehouse / Power BI. Coral requested it so RCM numbers can be traced back to each item and each change, which the summary user report can't do. It only issues GraphQL `query` operations; nothing in monday is created or changed.
+
+**Running:**
+```powershell
+.\scripts\monday_rcm_export.ps1 [-InitialLookbackDays 30]
+```
+Uses `MONDAY_API_TOKEN`. The workspace comes from `MONDAY_RCM_WORKSPACE_ID` if set, otherwise it's resolved by name (`MONDAY_RCM_WORKSPACE_NAME`, default `CORAL -- RCM`).
+
+**Access:** RCM is a *closed* workspace, so boards are only visible to their subscribers. Being an account admin isn't enough: the `sa_nebulas@` token sees 0 boards (confirmed 2026-10-30). The script deliberately throws on 0 boards rather than advancing the watermark. Production should use Coral's non-human `data_loader@coralconnect.com` account (Member seat + API, read access on the RCM boards), stored as a GitHub secret rather than held by any one person.
+
+**Outputs** (`Reports/monday_rcm/`, timestamped `yyyy-MM-ddTHHmm`, gitignored):
+- `rcm_items_<ts>.csv`: full snapshot, one row per item. Columns: board_id, board_name, group_title, item_id, item_name, state, created_at_utc, updated_at_utc, creator_id, item_url
+- `rcm_column_values_<ts>.csv`: full snapshot, long format, one row per item × column. Columns: board_id, item_id, column_id, column_title, column_type, text, value_json. Status, work queue, dates, owner and team all come through without hardcoded column IDs. Mirror, board-relation and dependency columns fall back to `display_value` because their `text` is null.
+- `rcm_activity_<ts>.csv`: **incremental** activity-log events. Columns: event_id, board_id, item_id, event, user_id, created_at_utc, column_id, column_title, previous_value_text, value_text, data_json. `created_at` is monday's 17-digit 100ns-since-epoch value, converted to ISO UTC. The raw `data` is kept for full traceability.
+- `rcm_users_<ts>.csv`: full snapshot with job `title`.
+
+**Watermark:** `rcm_state.json` (`last_activity_to`) holds the end of the last successful activity window. It's written only after every board succeeds, so a failed run retries the same window. Boundaries are inclusive: consumers must dedupe on `event_id`. With no state file, the script looks back `-InitialLookbackDays`.
+
+**Dates:** pwsh's `Invoke-RestMethod` parses ISO strings into `[DateTime]`, which would otherwise print in local culture. `ConvertTo-IsoUtc` re-emits them as ISO UTC.
+
+**Schedule:** `.github/workflows/rcm_export.yml`, every 6 hours plus `workflow_dispatch`, with `concurrency: rcm-export`. Each run:
+1. Restores `rcm_state.json` from SharePoint (`<SHAREPOINT_FOLDER>/rcm`).
+2. Runs the export.
+3. Uploads the CSVs plus the new state file back to that folder.
+
+SharePoint is the durable store for the watermark. Optional extra secret: `MONDAY_RCM_WORKSPACE_ID`.
+
+**`upload_to_sharepoint.ps1` parameters** (added for this; with no args the Coral User Report behavior is unchanged):
+- `-ReportsDir`: local folder relative to the project root
+- `-Files`: files to upload
+- `-SubFolder`: appended to `SHAREPOINT_FOLDER`
+- `-Download`: fetch files instead of uploading; a 404 is treated as a first run
+
+**Tests:** `Invoke-Pester -Path tests/monday_rcm_export.Tests.ps1 -Output Detailed`. Unlike the user-report tests, these load the real helper functions from the script via the PowerShell AST rather than redefining copies.
