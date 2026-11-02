@@ -156,39 +156,46 @@ SHAREFILE_REFRESH_TOKEN=<from sharefile_get_refresh_token.ps1>
 - Only visible on the full `Users({id})` object (see step 5); the account owner's `ReferredBy` comes back as the literal string `"none"` rather than null, which the script normalizes to blank.
 - Empirically (as of 2026-09-22): every current employee except the account owner is referred by `sa_nebulas@coralconnect.com` (a service/admin account), while every client is referred by a specific named human employee. This makes `AddedBy` a reasonable manual-vs-automated signal in practice, but the script deliberately does *not* hardcode a boolean "is this a service account" rule on top of it — that would be guessing at which accounts count as automation, which breaks the moment a new service account or a new human onboarding-admin shows up. Report readers should interpret the resolved name themselves.
 
-## CORAL -- RCM Export
+## CORAL -- RCM Report
 
-`scripts/monday_rcm_export.ps1` is a trace-level, **read-only** feed of the `CORAL -- RCM` workspace for Coral's data warehouse / Power BI. Coral requested it so RCM numbers can be traced back to each item and each change, which the summary user report can't do. It only issues GraphQL `query` operations; nothing in monday is created or changed.
+`scripts/monday_rcm_report.ps1` is a **read-only** report on the `CORAL -- RCM` workspace, requested by Coral. It reads each board's items and their column values (status, work queue, dates, owner, team), plus the board activity log (who changed what, and when). It also reads the user list with job titles. It only issues GraphQL `query` operations; nothing in monday is created or changed. It's run by hand: there's no schedule and no SharePoint upload.
 
 **Running:**
 ```powershell
-.\scripts\monday_rcm_export.ps1 [-InitialLookbackDays 30]
+.\scripts\monday_rcm_report.ps1 [-ActivityDays 30]
 ```
-Uses `MONDAY_API_TOKEN`. The workspace comes from `MONDAY_RCM_WORKSPACE_ID` if set, otherwise it's resolved by name (`MONDAY_RCM_WORKSPACE_NAME`, default `CORAL -- RCM`).
+Uses `MONDAY_RCM_API_TOKEN` if set, otherwise `MONDAY_API_TOKEN`. The override lets the report run as a different monday user (for example Coral's future `data_loader@` account) without touching the token the monthly user report uses. Each run logs which account it read as and stamps it in the HTML header.
 
-**Access:** RCM is a *closed* workspace, so boards are only visible to their subscribers. Being an account admin isn't enough: the `sa_nebulas@` token sees 0 boards (confirmed 2026-10-30). The script deliberately throws on 0 boards rather than advancing the watermark. Production should use Coral's non-human `data_loader@coralconnect.com` account (Member seat + API, read access on the RCM boards), stored as a GitHub secret rather than held by any one person.
+The workspace comes from `MONDAY_RCM_WORKSPACE_ID` if set; otherwise it's resolved by name (`MONDAY_RCM_WORKSPACE_NAME`, default `CORAL -- RCM`). To test against our own test workspace, set `MONDAY_RCM_WORKSPACE_NAME=NEB-IT-TEST`.
 
-**Outputs** (`Reports/monday_rcm/`, timestamped `yyyy-MM-ddTHHmm`, gitignored):
-- `rcm_items_<ts>.csv`: full snapshot, one row per item. Columns: board_id, board_name, group_title, item_id, item_name, state, created_at_utc, updated_at_utc, creator_id, item_url
-- `rcm_column_values_<ts>.csv`: full snapshot, long format, one row per item × column. Columns: board_id, item_id, column_id, column_title, column_type, text, value_json. Status, work queue, dates, owner and team all come through without hardcoded column IDs. Mirror, board-relation and dependency columns fall back to `display_value` because their `text` is null.
-- `rcm_activity_<ts>.csv`: **incremental** activity-log events. Columns: event_id, board_id, item_id, event, user_id, created_at_utc, column_id, column_title, previous_value_text, value_text, data_json. `created_at` is monday's 17-digit 100ns-since-epoch value, converted to ISO UTC. The raw `data` is kept for full traceability.
-- `rcm_users_<ts>.csv`: full snapshot with job `title`.
+**Access:** RCM is a *closed* workspace, so its content is only visible to workspace members. Being an account admin isn't enough:
+- **Before 2026-11-02:** `sa_nebulas@` saw 0 boards. Access came only through 3 owners (`jonathan.effgen@coralconnectconsultant.com`, `rammy.joudeh@`, `mike.gilberg@`) and the RCM teams: RCM -- DEV Team, RCM Coral Managers, RCM Coral Team, RCM Coral Directors and RCM - Coral - Consultants.
+- **On 2026-11-02:** `sa_nebulas@` joined the workspace through the monday UI, and now sees 20 boards.
+- **Private boards** would still need explicit subscription.
 
-**Watermark:** `rcm_state.json` (`last_activity_to`) holds the end of the last successful activity window. It's written only after every board succeeds, so a failed run retries the same window. Boundaries are inclusive: consumers must dedupe on `event_id`. With no state file, the script looks back `-InitialLookbackDays`.
+The script deliberately throws on 0 boards, rather than producing an empty report that looks like "no activity".
 
-**Dates:** pwsh's `Invoke-RestMethod` parses ISO strings into `[DateTime]`, which would otherwise print in local culture. `ConvertTo-IsoUtc` re-emits them as ISO UTC.
+**Outputs** (`Reports/monday_rcm/`, gitignored):
+- `coral_rcm_report_YYYY-MM-DD.html`: dashboard with these sections:
+  - Summary cards
+  - Activity by Associate (with job title)
+  - Change Log (latest 500 events, filterable by associate/board)
+  - Items by Status (every `status`-type column, so Work Queue too if it's a status column)
+  - Items by Owner/Team (every `people` column)
+  - Boards
+  - Users & Job Titles
+- `coral_rcm_report_YYYY-MM-DD.xlsx`: three sheets:
+  - **Items**: one row per item, with one column per board column title. Built by `ConvertTo-WideItems`; it's the union across boards, so same-titled columns merge. Duplicate titles get ` [column_id]`.
+  - **Activity**: the full log, with friendly event names and people IDs resolved to names.
+  - **Users**
+- Raw CSVs (`coral_rcm_items_*`, `coral_rcm_column_values_*` (long format), `coral_rcm_activity_*`, `coral_rcm_users_*`) keep the IDs and monday's raw JSON for traceability.
 
-**Schedule:** `.github/workflows/rcm_export.yml`, every 6 hours plus `workflow_dispatch`, with `concurrency: rcm-export`. Each run:
-1. Restores `rcm_state.json` from SharePoint (`<SHAREPOINT_FOLDER>/rcm`).
-2. Runs the export.
-3. Uploads the CSVs plus the new state file back to that folder.
+**Activity-log parsing notes** (from real payloads):
+- `created_at` is a 17-digit 100ns-since-epoch string, converted to ISO UTC.
+- `pulse_id` is the item. Board-level events like `subscribe` carry `"pulse_id": null` plus an `item_id` that is really the *board* ID (`item_type: "Board"`), so the script ignores that `item_id`.
+- `pulse_name` is the item's name at the time of the event. The report uses it when the item no longer exists (deleted or moved).
+- People changes are rendered `person:<id>` in the CSV and resolved to names in the report (`Resolve-PeopleText`).
 
-SharePoint is the durable store for the watermark. Optional extra secret: `MONDAY_RCM_WORKSPACE_ID`.
+**Dates:** pwsh's `Invoke-RestMethod` parses ISO strings into `[DateTime]`, which would otherwise print in local culture. `ConvertTo-IsoUtc` re-emits them as ISO UTC. All report times are UTC.
 
-**`upload_to_sharepoint.ps1` parameters** (added for this; with no args the Coral User Report behavior is unchanged):
-- `-ReportsDir`: local folder relative to the project root
-- `-Files`: files to upload
-- `-SubFolder`: appended to `SHAREPOINT_FOLDER`
-- `-Download`: fetch files instead of uploading; a 404 is treated as a first run
-
-**Tests:** `Invoke-Pester -Path tests/monday_rcm_export.Tests.ps1 -Output Detailed`. Unlike the user-report tests, these load the real helper functions from the script via the PowerShell AST rather than redefining copies.
+**Tests:** `Invoke-Pester -Path tests/monday_rcm_report.Tests.ps1 -Output Detailed`. Unlike the user-report tests, these load the real helper functions from the script via the PowerShell AST rather than redefining copies.
